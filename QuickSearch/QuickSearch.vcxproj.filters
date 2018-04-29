@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="NTFS">
+      <UniqueIdentifier>{e4bea878-e5a9-4656-8a6d-5f69df2b8f6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{01cd2669-fff1-48a5-bed7-4fc8c3f63a01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DB">
+      <UniqueIdentifier>{15df2c9f-3ee9-44aa-be67-987dd45452ce}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ntfsUtils.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="NtfsStructure.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="Volume.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="Thread.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="NtfsMgr.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="easylogging++.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="ScanNtfsOrDBThread.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="Lock.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="UpdateUSNRecord.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="FileHandler.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="IndexManager.h">
+      <Filter>DB</Filter>
+    </ClInclude>
+    <ClInclude Include="global.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FileNameMemoryManager.h">
+      <Filter>DB</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ntfsUtils.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="Volume.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="Thread.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="NtfsMgr.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="easylogging++.cc">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="ScanNtfsOrDBThread.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="mainWindow.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UpdateUSNRecord.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="FileHandler.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="IndexManager.cpp">
+      <Filter>DB</Filter>
+    </ClCompile>
+    <ClCompile Include="global.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FileNameMemoryManager.cpp">
+      <Filter>DB</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
