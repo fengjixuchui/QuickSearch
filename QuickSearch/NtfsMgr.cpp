@@ -7,7 +7,7 @@
 #include <Shlwapi.h>
 #include <ShlObj.h>
 #include "FileHandler.h"
-#include "MemoryManager.h"
+#include "FileNameMemoryManager.h"
 #pragma comment(lib, "shlwapi.lib")
 
 
@@ -251,75 +251,6 @@ BOOL CNtfsMgr::LoadDatabase(int volIndex)
     if (strDbFilePath.length() == 0) return FALSE;
 
     g_pIndexManager->Load(strDbFilePath, volIndex);
-
-    //HANDLE hfile = ::CreateFile(strDbFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
-    //if (INVALID_HANDLE_VALUE == hfile)
-    //{
-    //    LOG(INFO) << __FUNCTIONW__ << " can not open " << strDbFilePath;
-    //    return FALSE;
-    //}
-    //PBYTE pOutBuffer = (PBYTE)malloc(DW_SEARCHDB_HEADER_LENGTH);
-    //if (pOutBuffer == NULL)
-    //{
-    //    LOG(INFO) << __FUNCTIONW__ << " Allocation when loadDatabase Error ";
-    //    ::CloseHandle(hfile);
-    //    return FALSE;
-    //}
-
-    //DWORD cb;
-    //if (::ReadFile(hfile, pOutBuffer, DW_SEARCHDB_HEADER_LENGTH, &cb, NULL) == FALSE)
-    //{
-    //    LOG(INFO) << __FUNCTIONW__ << " Allocation when loadDatabase Error";
-    //    ::CloseHandle(hfile);
-    //    hfile = NULL;
-    //    ::DeleteFile(strDbFilePath.c_str());
-    //    return FALSE;
-    //}
-
-    //BOOL bRet = TRUE;
-
-    //DWORD dwReadDBUseTime = 0, beginTime = 0, memoryBegin =0, dwIndexTime = 0, dwLoopCount = 0;
-    //while (::ReadFile(hfile, pOutBuffer, FILEENTRY_DB_LENGTH, &cb, NULL) && !IsQuit())
-    //{
-    //    if (beginTime != 0)
-    //    {
-    //        dwReadDBUseTime += ::GetTickCount() - beginTime;
-    //    }
-
-    //    if (IsQuit()) { bRet = FALSE; break; }
-
-    //    PFileEntry pFileEntry = (PFileEntry)pOutBuffer;
-
-    //    if (pFileEntry == NULL)
-    //    {
-    //        break;
-    //    }
-
-    //    if (pFileEntry->FileReferenceNumber == KEY_MASK) //无效数据就不需要重新入库了
-    //    {
-    //        continue;
-    //    }
-    //    FileEntry tmpEntry = *pFileEntry;
-    //    tmpEntry.FileName = g_pMemoryManager->GetNewFileRecord(tmpEntry.fileInfo.FileNameLength, volIndex);
-    //    dwIndexTime += ::GetTickCount() - memoryBegin;
-    //    if (pFileEntry->fileInfo.volIndex >= 2 &&
-    //        pFileEntry->fileInfo.volIndex < 26 &&
-    //        pFileEntry->fileInfo.FileNameLength > 0)
-    //    {
-    //        g_pIndexManager->AddEntry(tmpEntry, volIndex);
-    //    }
-
-    //    memset(pOutBuffer, 0, FILEENTRY_DB_LENGTH);
-    //    beginTime = ::GetTickCount();
-    //    memoryBegin = ::GetTickCount();
-    //}
-    //::CloseHandle(hfile);
-    //free(pOutBuffer);
-    //pOutBuffer = NULL;
-    //DWORD endTime = ::GetTickCount() - dwStart;
-
-    //LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Time:" << endTime << " IndexTime:" << dwIndexTime;
-    //return bRet;
 }
 
 BOOL CNtfsMgr::CreateDatabase(int volIndex)
@@ -597,7 +528,14 @@ BOOL CNtfsMgr::CheckValidVolumeDB(int volIndex, LONGLONG & llNextUsn)
             LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Lose Data, need recreate database";
             return FALSE;
         }
-        return TRUE;
+        //检查IndexDB文件是否存在
+        GetVolumeDBStorePath(strDbFilePath, TC_DB_FILE_NAME, volIndex, FALSE);
+        WIN32_FILE_ATTRIBUTE_DATA attrs = { 0 };
+        if (::GetFileAttributesEx(strDbFilePath.c_str(), ::GetFileExInfoStandard, &attrs))
+        {
+            return TRUE;
+        }
+        return FALSE;
     }
 
     LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Database not exist";
