@@ -71,7 +71,7 @@ namespace NtfsUtils
         //第一个参数是卷中日志的最大字节数，应该占到卷大小的很小的百分比，并且限制最大是4GB。举个例子，一个9GB的卷中，合理的日志大小是8MB
         //，第二个参数指定了当日志需要扩容时的字节数。应该为卷簇大小的偶数倍，是MaximumSize值的八分之一到四分之一
         DWORDLONG dwTmpUsnMaxSize = salcUsnMaxSize;
-        if (dwVolIndex < 0 || dwVolIndex >= DIRVE_COUNT) return FALSE;
+        if (dwVolIndex < 0 || dwVolIndex >= VOLUME_COUNT) return FALSE;
         DWORDLONG dwVolumeTotalSpace = (DWORDLONG)g_ArrayVolumeInfo[dwVolIndex].m_dwVolumeTotalSpace;
         DWORDLONG dwBytesPerCluster = (DWORDLONG)g_ArrayVolumeInfo[dwVolIndex].m_dwBytesPerCluster;
         if (dwVolumeTotalSpace <= 0 || dwBytesPerCluster <= 0) return FALSE;
@@ -138,7 +138,7 @@ namespace NtfsUtils
                         ; pAttribute = (PATTRIBUTE)((PBYTE)pAttribute + pAttribute->Length)
                         );
                     if (pAttribute->AttributeType > AttributeAttributeList) {
-                        LOG(ERROR) << __FUNCTIONW__ << " 没有找到80属性也没有20属性 FRN:" << FRN;
+                        LOG(ERROR) << __FUNCTIONW__ << " 没有找到80属性也没有20属性 vol:"<< (char)(dwIndex+'A')<<" FRN:" << FRN;
                     }
                     else 
                     {
@@ -182,14 +182,14 @@ namespace NtfsUtils
                                 }
                                 else
                                 {
-                                    LOG(INFO) << __FUNCTIONW__ << " 没有找到80属性也没有20属性 FRN:" << FRN;
+                                    LOG(INFO) << __FUNCTIONW__ << " 没有找到80属性也没有20属性 vol:" << (char)(dwIndex + 'A') << " FRN:" << FRN;
                                 }
                             }
                             free(pBuffferRead);
                         }
                         else {
                             for (pAttriList = PATTRIBUTE_LIST((PBYTE)pAttribute + PRESIDENT_ATTRIBUTE(pAttribute)->ValueOffset);
-                                pAttriList->AttributeType < AttributeData && pAttriList->AttributeType != 0;
+                                pAttriList->AttributeType < AttributeData && pAttriList->AttributeType != AttributeEnd;
                                 pAttriList = PATTRIBUTE_LIST(PBYTE(pAttriList) + pAttriList->Length)
                                 );
                             if (pAttriList->AttributeType == AttributeData)
@@ -200,8 +200,7 @@ namespace NtfsUtils
                                     , pMftRecord, dwFileRecSize, &dwRet, NULL);
                                 pfileRecordheader = (PFILE_RECORD_HEADER)pMftRecord->FileRecordBuffer;
                                 for (pAttribute = (PATTRIBUTE)((PBYTE)pfileRecordheader + pfileRecordheader->AttributeOffset)
-                                    ; pAttribute->AttributeType != AttributeEnd && pAttribute->AttributeType < AttributeData \
-                                    && pAttriList->AttributeType != 0
+                                    ; pAttribute->AttributeType != AttributeEnd && pAttribute->AttributeType < AttributeData 
                                     ; pAttribute = (PATTRIBUTE)((PBYTE)pAttribute + pAttribute->Length)
                                     );
                                 if (AttributeData == pAttribute->AttributeType)
@@ -215,7 +214,7 @@ namespace NtfsUtils
                                     return;
                                 }
                             }
-                            LOG(INFO) << __FUNCTIONW__ << " 没有找到80属性 FRN:" << FRN;
+                            LOG(INFO) << __FUNCTIONW__ << " 没有找到80属性 vol:" << (char)(dwIndex + 'A') << " FRN:" << FRN;
                         }
                     }
                 }
@@ -356,18 +355,123 @@ namespace NtfsUtils
         fileEntry.FileReferenceNumber = ((KEY)pRecord->FileReferenceNumber & KEY_MASK);
         fileEntry.ParentFileReferenceNumber = (KEY)(pRecord->ParentFileReferenceNumber & KEY_MASK);
         fileEntry.fileInfo.dir = (pRecord->FileAttributes&FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
-        //pFileEntry->fileInfo.hidden     = is_hidden(pRecord) ? 1 : 0;
         fileEntry.fileInfo.volIndex = volIndex;
-        fileEntry.fileInfo.FileNameLength = FileNameLengthInBytes;
-        //pFileEntry->fileInfo.StrLen = wStrlen;
         fileEntry.fileInfo.chname = FileNameLengthInBytes > wStrlen ? 1 : 0;
-        fileEntry.FileName = g_pMemoryManager->GetNewFileRecord(FileNameLengthInBytes, volIndex);
+        if (fileEntry.ParentFileReferenceNumber == ROOT_NUMBER)
+        {
+            fileEntry.fileInfo.parentroot = 1;
+        }
+        PFileNameEntry pfileNameEntry = g_pMemoryManager->GetNewFileRecord(FileNameLengthInBytes + FileNameEntryHeaderSize + 2, volIndex);
+
+        pfileNameEntry->FRN = fileEntry.FileReferenceNumber;
+        pfileNameEntry->FileNameLength = FileNameLengthInBytes;
+        fileEntry.pFileName = pfileNameEntry;
+
         int retCount = WideCharToMultiByte(CP_UTF8, 0, (wchar_t *)(((PBYTE)pRecord) + pRecord->FileNameOffset), \
-            wStrlen, fileEntry.FileName, FileNameLengthInBytes, NULL, NULL);
+            wStrlen, pfileNameEntry->FileName, FileNameLengthInBytes, NULL, NULL);
         if (FileNameLengthInBytes != retCount)
         {
             LOG(INFO) << __FUNCTIONW__ << " FileNameLengthInBytes:" << FileNameLengthInBytes << \
                 " retCount:" << retCount << " FileNameLength:" << pRecord->FileNameLength;
+        }
+        //*(((char*)pfileNameEntry->FileName) + FileNameLengthInBytes) = '\0';
+        DWORDLONG dwSize, dwTime;
+        QueryFileInfoByFRN(g_ArrayVolumeInfo[volIndex].m_hVolHandle, fileEntry.FileReferenceNumber, volIndex, &dwTime, &dwSize);
+        if (fileEntry.fileInfo.dir == 1)
+        {
+            fileEntry.dwFileSize = 0;
+        }
+        else
+        {
+            fileEntry.dwFileSize = dwSize;
+        }
+        fileEntry.dwMftTime = dwTime;
+        return TRUE;
+    }
+    FileEntry GetParentEntry(PFileEntry childEntry)
+    {
+        auto& index = g_pIndexManager->m_VolFileIndex[childEntry->fileInfo.volIndex].get<0>();
+        auto itr = index.find(childEntry->ParentFileReferenceNumber);
+        if (itr != index.end())
+        {
+            return *itr;
+        }
+        FileEntry temp;
+        return temp;
+    }
+    BOOL GetFilePath(int nVol, PFileEntry pEntry, std::wstring & strFilePath)
+    {
+
+        BOOL bAttachFileName = TRUE;
+        FileEntry fileEntry = *pEntry;
+        FileEntry parentEntry = GetParentEntry(pEntry);
+        while (1)
+        {
+            if (parentEntry.FileReferenceNumber==KEY_MASK)
+            {
+                if (fileEntry.fileInfo.parentroot)
+                {
+                    std::string strFileName;
+                    if (bAttachFileName)
+                    {
+                        strFileName.assign(fileEntry.pFileName->FileName, fileEntry.pFileName->FileNameLength);
+
+                        int slength = (int)strFileName.length() + 1;
+                        int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                        wchar_t* wcharArr = new wchar_t[wstrLen];
+                        memset(wcharArr, 0, wstrLen);
+                        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(),\
+                            strFileName.length(), (LPWSTR)wcharArr, wstrLen);
+                        std::wstring strName(wcharArr);
+                        delete[] wcharArr;
+                        strFilePath.insert(0, strName);
+                        strFilePath.insert(0, _T("\\"));
+                        bAttachFileName = FALSE;
+                    }
+                    wchar_t temp = L'A' + pEntry->fileInfo.volIndex;
+                    strFilePath.insert(0, 1, ':');
+                    strFilePath.insert(0, 1, temp);
+                    break;
+                }
+                else
+                {
+                    return FALSE;
+                }
+            }
+            else
+            {
+                std::string strFileName;
+                if (bAttachFileName)
+                {
+                    strFileName.assign(fileEntry.pFileName->FileName, fileEntry.pFileName->FileNameLength);
+                    int slength = (int)strFileName.length() + 1;
+                    int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                    wchar_t* wcharArr = new wchar_t[wstrLen];
+                    memset(wcharArr, 0, wstrLen);
+                    MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), \
+                        slength, (LPWSTR)wcharArr, wstrLen);
+                    std::wstring strName(wcharArr);
+                    delete[] wcharArr;
+                    strFilePath.insert(0, strName);
+                    strFilePath.insert(0, _T("\\"));
+                    bAttachFileName = FALSE;
+                }
+                strFileName.assign(parentEntry.pFileName->FileName, parentEntry.pFileName->FileNameLength);
+                int slength = (int)strFileName.length() + 1;
+                int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                wchar_t* wcharArr = new wchar_t[wstrLen];
+                memset(wcharArr, 0, wstrLen);
+                MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), \
+                    slength, (LPWSTR)wcharArr, wstrLen);
+                std::wstring strName(wcharArr);
+                delete[] wcharArr;
+
+                strFilePath.insert(0, strName);
+                strFilePath.insert(0, _T("\\"));
+            }
+
+            fileEntry = GetParentEntry(&fileEntry);
+            parentEntry = GetParentEntry(&fileEntry);
         }
         return TRUE;
     }

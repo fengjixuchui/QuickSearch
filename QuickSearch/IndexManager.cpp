@@ -15,10 +15,10 @@ IndexManager::~IndexManager()
 }
 BOOL IndexManager::AddEntry(FileEntry fileEntry,int nVolIndex)
 {
-    if (isFindEntry(fileEntry.FileReferenceNumber, nVolIndex) == TRUE)
-    {
-        DeleteEntry(fileEntry.FileReferenceNumber, nVolIndex);
-    }
+    //if (isFindEntry(fileEntry.FileReferenceNumber, nVolIndex) == TRUE)
+    //{
+    DeleteEntry(fileEntry.FileReferenceNumber, nVolIndex);
+    //}
     m_VolFileIndex[nVolIndex].insert(fileEntry);
     return TRUE;
 }
@@ -29,7 +29,7 @@ BOOL IndexManager::DeleteEntry(KEY FRN, int nVolIndex)
     if (itr != index.end())
     {
         FileEntry tmpEntry = *itr;
-        g_pMemoryManager->FreeFileEntry(tmpEntry, nVolIndex);
+        g_pMemoryManager->FreeFileEntry(tmpEntry.pFileName, nVolIndex);
         index.erase(itr);
     }
     
@@ -52,10 +52,10 @@ BOOL IndexManager::isFindEntry(KEY FRN, int nVolIndex)
     return FALSE;
 }
 
-FileEntry_Set & IndexManager::GetVolIndex(int nVolIndex)
-{
-    return m_VolFileIndex[nVolIndex];
-}
+//FileEntry_Set & IndexManager::GetVolIndex(int nVolIndex)
+//{
+//    return m_VolFileIndex[nVolIndex];
+//}
 
 void IndexManager::Save(std::wstring& strDbFilePath, int nVolIndex)
 {
@@ -71,4 +71,12 @@ void IndexManager::Load(std::wstring& strDbFilePath, int nVolIndex)
     std::ifstream ifs(strDbFilePath);
     boost::archive::text_iarchive ia(ifs);
     ia >> fs;
+}
+
+void IndexManager::UnInit()
+{
+    for (int i = 0; i < VOLUME_COUNT; ++i)
+    {
+        m_VolFileIndex[i].clear();
+    }
 }

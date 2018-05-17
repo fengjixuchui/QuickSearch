@@ -4,7 +4,7 @@
 #include <assert.h>
 
 #pragma comment(lib, "shlwapi.lib")
-namespace CFileHandler
+namespace FileHandler
 {
     BOOL CreateDirectory(const TCHAR * lpszDirName)
     {
@@ -45,6 +45,25 @@ namespace CFileHandler
 
         delete[]pTempDirName;
         return bRet;
+    }
+
+    BOOL DeleteFile(const TCHAR *  path)
+    {
+        WIN32_FILE_ATTRIBUTE_DATA attrs = { 0 };
+        if (::GetFileAttributesEx(path, ::GetFileExInfoStandard, &attrs))
+        {
+            ::DeleteFile(path);
+            return TRUE;
+        }
+        return FALSE;
+    }
+
+    BOOL SplitFileType(const std::wstring& filename, std::wstring& filetype)
+    {
+        size_t uPos = filename.find_last_of(_T("."), filename.size());
+        if (uPos != std::wstring::npos)
+            filetype = filename.substr(uPos, filename.size());
+        return filetype.size() > 0;
     }
 
     void GetAppStorePath(TCHAR * ptszFilePath)

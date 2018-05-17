@@ -8,11 +8,12 @@ CScanNtfsOrDBThread::CScanNtfsOrDBThread()
     , m_dwScanTime(0)
 {
     m_hFinishEvent = CreateEvent(
-        NULL,               // default security attributes
-        TRUE,               // manual-reset event
-        FALSE,              // initial state is nonsignaled
-        TEXT("finishEvent")  // object name
+        NULL,               
+        FALSE,             
+        FALSE,             
+        TEXT("finishEvent")
     );
+    m_hPauseEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 }
 
 
@@ -29,7 +30,7 @@ void CScanNtfsOrDBThread::Init(DWORD dwIndex, CNtfsMgr * pNtfsMgr)
 {
     m_dwVolumeIndex = dwIndex;
     m_pNtfsMgr = pNtfsMgr;
-
+    this->Start();
 }
 
 void CScanNtfsOrDBThread::UnInit()
@@ -43,6 +44,7 @@ void CScanNtfsOrDBThread::ThreadFunc()
     {
         return;
     }
+    ::WaitForSingleObject(m_hPauseEvent, INFINITE);
     DWORD dwBegin = ::GetTickCount();
     if (m_pNtfsMgr != NULL)
     {
@@ -57,13 +59,12 @@ void CScanNtfsOrDBThread::ThreadFunc()
 
 void CScanNtfsOrDBThread::StartScan()
 {
-    ::ResetEvent(m_hFinishEvent);
-    this->Start();
+    ::SetEvent(m_hPauseEvent);
 }
 
 DWORD CScanNtfsOrDBThread::GetVolIndex()
 {
-    return m_dwVolIndex;
+    return m_dwVolumeIndex;
 }
 
 void CScanNtfsOrDBThread::Wait()

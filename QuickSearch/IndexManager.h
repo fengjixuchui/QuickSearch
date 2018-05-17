@@ -45,24 +45,21 @@ namespace boost {
             BYTE bParentroot = g.fileInfo.parentroot;
             BYTE bChname = g.fileInfo.chname;
             BYTE bVolIndex = g.fileInfo.volIndex;
-            short sFileNameLength = g.fileInfo.FileNameLength;
             ar & BOOST_SERIALIZATION_NVP(bDir);
             ar & BOOST_SERIALIZATION_NVP(bParentroot);
             ar & BOOST_SERIALIZATION_NVP(bChname);
             ar & BOOST_SERIALIZATION_NVP(bVolIndex);
-            ar & BOOST_SERIALIZATION_NVP(sFileNameLength);
 
             g.fileInfo.dir = bDir;
             g.fileInfo.parentroot = bParentroot;
             g.fileInfo.chname = bChname;
             g.fileInfo.volIndex = bVolIndex;
-            g.fileInfo.FileNameLength = sFileNameLength;
         }
 
     } // namespace serialization
 } // namespace boost
 
-const TCHAR TC_DB_FILE_NAME[] = _T("QuickSearch.db");       // 数据库文件名
+const TCHAR TC_DB_FILE_NAME[] = _T("QuickSearch");       // 数据库文件名
 class IndexManager
 {
 public:
@@ -73,12 +70,14 @@ public:
     BOOL DeleteEntry(KEY FRN, int nVolIndex);
     DWORD GetVolFileCnt(int nVolIndex);
     BOOL isFindEntry(KEY FRN, int nVolIndex);
-    FileEntry_Set& GetVolIndex(int nVolIndex);
+    //FileEntry_Set& GetVolIndex(int nVolIndex);
 
     //DB
     void Save(std::wstring& strDbFilePath, int nVolIndex);
     void Load(std::wstring& strDbFilePath,int nVolIndex);
+
+    void UnInit();
 public:
-    FileEntry_Set m_VolFileIndex[DIRVE_COUNT];
+    FileEntry_Set m_VolFileIndex[VOLUME_COUNT];
 };
 extern IndexManager *g_pIndexManager;

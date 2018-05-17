@@ -22,6 +22,9 @@
     <Filter Include="DB">
       <UniqueIdentifier>{15df2c9f-3ee9-44aa-be67-987dd45452ce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Search">
+      <UniqueIdentifier>{42141669-3a52-4f1c-bff5-7b105137623e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ntfsUtils.h">
@@ -63,6 +66,30 @@
     <ClInclude Include="FileNameMemoryManager.h">
       <Filter>DB</Filter>
     </ClInclude>
+    <ClInclude Include="SearchThread.h">
+      <Filter>Search</Filter>
+    </ClInclude>
+    <ClInclude Include="UsnMonitorThread.h">
+      <Filter>NTFS</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="compareName.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchMgr.h">
+      <Filter>Search</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="ListviewMgr.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mainWindow.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ntfsUtils.cpp">
@@ -101,5 +128,33 @@
     <ClCompile Include="FileNameMemoryManager.cpp">
       <Filter>DB</Filter>
     </ClCompile>
+    <ClCompile Include="SearchThread.cpp">
+      <Filter>Search</Filter>
+    </ClCompile>
+    <ClCompile Include="UsnMonitorThread.cpp">
+      <Filter>NTFS</Filter>
+    </ClCompile>
+    <ClCompile Include="compareName.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SearchMgr.cpp">
+      <Filter>Search</Filter>
+    </ClCompile>
+    <ClCompile Include="Util.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="ListviewMgr.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="QuickSearch.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="listview.bin">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

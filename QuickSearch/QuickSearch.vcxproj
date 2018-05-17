@@ -87,10 +87,11 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_X86_;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_X86_;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;-D_SCL_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalIncludeDirectories>.\;D:\Boost\boost_1_67_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -121,7 +122,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_X86_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;WIN32;NDEBUG;_WINDOWS;_X86_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>.\;D:\Boost\boost_1_67_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -153,33 +154,53 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="compareName.h" />
     <ClInclude Include="easylogging++.h" />
     <ClInclude Include="FileHandler.h" />
     <ClInclude Include="global.h" />
+    <ClInclude Include="ListviewMgr.h" />
     <ClInclude Include="Lock.h" />
     <ClInclude Include="IndexManager.h" />
     <ClInclude Include="FileNameMemoryManager.h" />
+    <ClInclude Include="mainWindow.h" />
     <ClInclude Include="NtfsMgr.h" />
     <ClInclude Include="NtfsStructure.h" />
     <ClInclude Include="ntfsUtils.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="ScanNtfsOrDBThread.h" />
+    <ClInclude Include="SearchMgr.h" />
+    <ClInclude Include="SearchThread.h" />
     <ClInclude Include="Thread.h" />
     <ClInclude Include="UpdateUSNRecord.h" />
+    <ClInclude Include="UsnMonitorThread.h" />
+    <ClInclude Include="Util.h" />
     <ClInclude Include="Volume.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="compareName.cpp" />
     <ClCompile Include="easylogging++.cc" />
     <ClCompile Include="FileHandler.cpp" />
     <ClCompile Include="global.cpp" />
     <ClCompile Include="IndexManager.cpp" />
+    <ClCompile Include="ListviewMgr.cpp" />
     <ClCompile Include="mainWindow.cpp" />
     <ClCompile Include="FileNameMemoryManager.cpp" />
     <ClCompile Include="NtfsMgr.cpp" />
     <ClCompile Include="ntfsUtils.cpp" />
     <ClCompile Include="ScanNtfsOrDBThread.cpp" />
+    <ClCompile Include="SearchMgr.cpp" />
+    <ClCompile Include="SearchThread.cpp" />
     <ClCompile Include="Thread.cpp" />
     <ClCompile Include="UpdateUSNRecord.cpp" />
+    <ClCompile Include="UsnMonitorThread.cpp" />
+    <ClCompile Include="Util.cpp" />
     <ClCompile Include="Volume.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="QuickSearch.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="listview.bin" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

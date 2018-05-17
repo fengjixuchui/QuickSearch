@@ -18,7 +18,7 @@ private:
     DWORD m_dwVolumeIndex;
     CNtfsMgr* m_pNtfsMgr;
     DWORD m_dwScanTime;
-    DWORD m_dwVolIndex;
     HANDLE m_hFinishEvent;
+    HANDLE m_hPauseEvent;
 };
 

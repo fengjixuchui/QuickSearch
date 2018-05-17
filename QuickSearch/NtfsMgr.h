@@ -2,7 +2,7 @@
 
 #include "global.h"
 #include <vector>
-
+#include "IndexManager.h"
 class CNtfsMgr
 {
 public:
@@ -19,22 +19,23 @@ public:
     void ReleaseScanThread();
     BOOL IsQuit();
     DWORD GetVolFileCnt(int nvolIndex);
+    DWORD GetAllFileCnt();
     BOOL SaveDatabase(); //保存索引到本地DB
 private:
     BOOL LoadDatabase(int volIndex);  // LoadDatabase 加载本地数据库
     BOOL CreateDatabase(int volIndex);// 扫描MFT,创建数据库
-    
-    BOOL LoadIndexData(int volIndex);
-    BOOL LoadFileNameData(int volIndex);
-
+   
     //DB相关
     BOOL GetVolumeDBStorePath(std::wstring& strDbFilePath, const TCHAR* pFileName, int volIndex, BOOL isFileNameData);  //获取存储文件路径
     BOOL CheckValidVolumeDB(int volIndex, LONGLONG& llNextUsn);
-    BOOL SaveNtfsInfoDB(DWORD dwBufSize, int volIndex); //4096Byte
+    BOOL SaveNtfsInfoDB(TCHAR* ParamHeaderBuffer,DWORD dwBufSize, int volIndex); //4096Byte
+    BOOL LoadFileNameDatabase(int volIndex);
+    BOOL SaveFileNameDataBase(int volIndex);
+public:
+    std::vector<int> m_vecValidVolumes;
 private:
     friend class CScanNtfsOrDBThread;
 	static CNtfsMgr* CNtfsMgrInstance;
-	std::vector<int> m_vecValidVolumes;
     std::vector<CScanNtfsOrDBThread*> m_vecScanThread;
 };
 

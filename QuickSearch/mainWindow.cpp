@@ -1,33 +1,197 @@
-#include "easylogging++.h"
-INITIALIZE_EASYLOGGINGPP
-#include<windows.h>
-#include "NtfsMgr.h"
-HINSTANCE g_hInstance = 0;
+Ôªø#include "mainWindow.h"
 
-
-//¥∞ø⁄¥¶¿Ì∫Ø ˝  
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+WNDPROC oldEditProc;
+LRESULT CALLBACK searchEditProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    switch (msg)
+    {
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_RETURN:
+        {
+            TCHAR szBuf[255];
+            ::GetWindowText(searchEdit, szBuf, 255);
+            int dwlength = WideCharToMultiByte(CP_UTF8, 0, szBuf, 255, NULL, NULL, NULL, NULL);
+            char* str = (char*)malloc(dwlength + 2);
+            WideCharToMultiByte(CP_UTF8, 0, szBuf, 255, str, dwlength + 2, NULL, NULL);
+            strSearchText = str;
+            delete[] str;
+            if (bInitFinish)
+            {
+                if (strSearchText.length() != 0)
+                {
+                    SearchOpt opt;
+                    opt.name = strSearchText;
+                    opt.sortType = Srot_By_Name;
+                    Search(opt);
+                    strSearchText.clear();
+                }
+            }
+            
+        }
+            //Do your stuff
+            break;  //or return 0; if you don't want to pass it further to def proc
+                    //If not your key, skip to default:
+        }
+    default:
+        return CallWindowProc(oldEditProc, wnd, msg, wParam, lParam);
+    }
+    return 0;
+}
+
+//Á™óÂè£Â§ÑÁêÜÂáΩÊï∞  
+LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    mainWindow = hwnd;
     switch (uMsg)
     {
+    case WM_CREATE:
+    {
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        UpdatePos(rect.right, rect.bottom);
+        
+        //Ê∑ªÂä†ÊúçÂä°Âô®ipÁöÑÁºñËæëÊ°Ü  
+        searchEdit = CreateWindow(L"edit", NULL, WS_CHILD | WS_VISIBLE | WS_BORDER,
+            X_SearchEdit, Y_SearchEdit, Width_SearchEdit, Height_SearchEdit, hwnd, (HMENU)ID_EDITTEXT_FILENAME, NULL, NULL);
+        oldEditProc = (WNDPROC)SetWindowLongPtr(searchEdit, GWLP_WNDPROC, (LONG_PTR)searchEditProc);
+        //SendDlgItemMessage(hwnd, ID_EDITTEXT_FILENAME, WM_SETFOCUS, 0, 0);
+        //SendMessage(hwnd, WM_SETFOCUS, (WPARAM)searchEdit, 0);
+        //SetWindowText(searchEdit, L"");
+        //hButton = CreateWindow(L"Button", L"search", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+        //    905, 10, 75, 25, hwnd, (HMENU)ID_BUTTON_SEARCH, NULL, NULL);
+
+        int nWidth = 100;
+        hBKStatic = CreateWindow(L"static", L"", WS_CHILD | WS_VISIBLE | SS_CENTERIMAGE, \
+                0, 0, Width_Window, 30, hwnd, (HMENU)ID_STATICTEXT_BK, NULL, NULL);
+        hFilterStaticText = CreateWindow(L"static", L" Á≠õ ÈÄâ : ", WS_CHILD | WS_VISIBLE | SS_CENTERIMAGE, \
+            0, 0, 50, 30, hwnd, (HMENU)ID_STATICTEXT_FILTER, NULL, NULL);
+
+        hFilterDoc = CreateWindowEx(NULL, L"Button", L"ÊñáÊ°£", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_DOCS, NULL, NULL);
+
+        hFilterIMG = CreateWindowEx(NULL, L"Button", L"ÂõæÁâá", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50+nWidth, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_IMGS, NULL, NULL);
+
+        hFilterAudio = CreateWindowEx(NULL, L"Button", L"Èü≥È¢ë", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50+nWidth * 2, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_AUDIOS, NULL, NULL);
+
+        hFilterVideo = CreateWindowEx(NULL, L"Button", L"ËßÜÈ¢ë", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50 + nWidth * 3, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_VIDEOS, NULL, NULL);
+
+        hFilterCompressed = CreateWindowEx(NULL, L"Button", L"ÂéãÁº©Êñá‰ª∂", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50 + nWidth * 4, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_COMPRESSED, NULL, NULL);
+
+        hFilterFolder = CreateWindowEx(NULL, L"Button", L"Êñá‰ª∂Â§π", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, \
+            50 + nWidth * 5, 0, nWidth, 30, hwnd, (HMENU)ID_FILTER_FOLDERS, NULL, NULL);
+
+        //ÂàõÂª∫listview  
+        listview = CreateWindowEx(NULL, TEXT("SysListView32"), NULL, WS_CHILD | WS_VISIBLE | \
+            LVS_REPORT | LVS_SINGLESEL | LVS_OWNERDATA | WS_HSCROLL, \
+            X_Listview, Y_Listview, Width_Listview, Height_Listview, \
+            hwnd, (HMENU)1, (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE), NULL);
+
+        ListView_SetExtendedListViewStyle(listview, LVS_EX_SUBITEMIMAGES);//ËÆæÁΩÆlistviewÊâ©Â±ïÈ£éÊ†º
+        list1.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT;//Êé©Á†Å  
+        list1.fmt = LVCFMT_CENTER;
+        list1.cx = 260;//ÂàóÂÆΩ  
+        list1.pszText = TEXT("Êñá‰ª∂Âêç");
+        SendMessage(listview, LVM_INSERTCOLUMN, 0, (LPARAM)&list1);//ÂàõÂª∫Âàó
+        list1.cx = 400;//ÂàóÂÆΩ  
+        list1.pszText = TEXT("Ë∑ØÂæÑ");
+        SendMessage(listview, LVM_INSERTCOLUMN, 1, (LPARAM)&list1);
+        list1.pszText = TEXT("Â§ßÂ∞è");
+        list1.cx = 150;//ÂàóÂÆΩ 
+        SendMessage(listview, LVM_INSERTCOLUMN, 2, (LPARAM)&list1);
+        list1.pszText = TEXT("‰øÆÊîπÊó•Êúü");
+        list1.cx = 150;//ÂàóÂÆΩ 
+        SendMessage(listview, LVM_INSERTCOLUMN, 3, (LPARAM)&list1);
+
+        //Â∑¶‰∏ãËßíÊèêÁ§∫Ê°Ü
+        staticText = CreateWindow(L"static", L"ÂìàÂìàÂïäÂìàÂìà", WS_CHILD | WS_VISIBLE | SS_LEFT | WS_BORDER, \
+            X_StaticText, Y_StaticText, Width_StaticText, Height_StaticText, \
+            hwnd, (HMENU)ID_STATICTEXT_NOTE, NULL, NULL);
+        SetWindowText(staticText, L"ÂíåÈ£éÊ≤ôÂæàÂ§ßÂ∞ñÂ≥∞Êó∂ÂàªÂ§ß");
+        EnumChildWindows(hwnd, (WNDENUMPROC)SetFont, (LPARAM)hFont);
+    }
+        break;
     case WM_DESTROY:
-        PostQuitMessage(0);//ø…“‘ πGetMessage∑µªÿ0  
+        PostQuitMessage(0);//ÂèØ‰ª•‰ΩøGetMessageËøîÂõû0  
         break;
-    case WM_LBUTTONDOWN:
-        MessageBox(NULL, L" Û±Í◊Ûº¸µ„ª˜", L"Win32_Mouse", MB_OK);
-        CNtfsMgr::Instance()->initVolumes();
-        CNtfsMgr::Instance()->ScanVolumeFileData();
-        CNtfsMgr::Instance()->SaveDatabase();
+    case WM_COMMAND:
+        switch (HIWORD(wParam))
+        {
+        case EN_CHANGE:
+        {
+            /*TCHAR szBuf[255];
+            ::GetWindowText(searchEdit, szBuf, 255);
+            int dwlength = WideCharToMultiByte(CP_UTF8, 0, szBuf, 255, NULL, NULL, NULL, NULL);
+            char* str = (char*)malloc(dwlength + 2);
+            WideCharToMultiByte(CP_UTF8, 0, szBuf, 255, str, dwlength + 2, NULL, NULL);
+            std::string strTemp(str);
+            delete[] str;
+            if (strTemp.length() != 0)
+            {
+                SearchOpt opt;
+                opt.name = strTemp;
+                opt.sortType = Srot_By_Name;
+                Search(opt);
+            }*/
+        }  
+            break;
+        default:
+            break;
+        }
+        if (HIWORD(wParam) == BN_CLICKED)
+        {
+            UpdateResultType(LOWORD(wParam));
+            FilterResult();
+        }
+        if (LOWORD(wParam) == ID_EDITTEXT_FILENAME)
+        {
+            if (HIWORD(wParam) == VK_RETURN)
+            {
+                int a = 0;
+            }
+        }
         break;
-    case WM_RBUTTONDOWN:
-        MessageBox(NULL, L" Û±Í”“º¸µ„ª˜", L"Win32_Mouse", MB_OK);
+    case WM_NOTIFY:
+        listViewMgr.OnNotify(hwnd, reinterpret_cast<NMHDR*>(lParam));
+        break;
+    case WM_SIZE:
+    {
+        HDWP hdwp;
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        hdwp = BeginDeferWindowPos(4);
+        UpdatePos(rect.right, rect.bottom);
+        DeferWindowPos(hdwp, searchEdit, NULL, X_SearchEdit, Y_SearchEdit, Width_SearchEdit, Height_SearchEdit, SWP_NOZORDER);
+        DeferWindowPos(hdwp, listview, NULL, X_Listview, Y_Listview, Width_Listview, Height_Listview, SWP_NOZORDER);
+        DeferWindowPos(hdwp, staticText, NULL, X_StaticText, Y_StaticText, Width_StaticText, Height_StaticText, SWP_NOZORDER);
+        DeferWindowPos(hdwp, hBKStatic, NULL, 0, 0, Width_StaticText, 30,SWP_NOZORDER);
+        EndDeferWindowPos(hdwp);
+        
+    }
+        break;
+    case MSG_FINISH_INIT:
+    {
+        if (strSearchText.length() > 0)
+        {
+            SearchOpt opt;
+            opt.name = strSearchText;
+            opt.sortType = Srot_By_Name;
+            Search(opt);
+            strSearchText.clear();
+        }
+    }
         break;
     default:
         break;
     }
-    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
-//◊¢≤·¥∞ø⁄¿‡  
+//Ê≥®ÂÜåÁ™óÂè£Á±ª  
 BOOL Register(LPCWSTR lpClassName, WNDPROC wndProc)
 {
     WNDCLASSEX wce = { 0 };
@@ -49,20 +213,21 @@ BOOL Register(LPCWSTR lpClassName, WNDPROC wndProc)
     return true;
 
 }
-//¥¥Ω®÷˜¥∞ø⁄  
+//ÂàõÂª∫‰∏ªÁ™óÂè£  
 HWND CreateMain(LPCWSTR lpClassName, LPCWSTR lpWndName)
 {
     HWND hWnd = CreateWindowEx(0, lpClassName, lpWndName,
-        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, g_hInstance, NULL);
+        WS_OVERLAPPEDWINDOW, 500, 300, 1000,\
+        800, NULL, NULL, g_hInstance, NULL);
     return hWnd;
 }
-//œ‘ æ¥∞ø⁄  
+//ÊòæÁ§∫Á™óÂè£  
 void Display(HWND hWnd)
 {
     ShowWindow(hWnd, SW_SHOW);
     UpdateWindow(hWnd);
 }
-//œ˚œ¢—≠ª∑  
+//Ê∂àÊÅØÂæ™ÁéØ  
 void Message()
 {
     MSG nMsg = { 0 };
@@ -89,14 +254,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     
     if (!nRet)
     {
-        MessageBox(NULL, L"◊¢≤· ß∞‹", L"Infor", MB_OK);
+        MessageBox(NULL, L"Ê≥®ÂÜåÂ§±Ë¥•", L"Infor", MB_OK);
         return 0;
     }
-    
-    
     HWND hWnd = CreateMain(L"Main", L"window");
     Display(hWnd);
+
+    HANDLE InitThread = ::CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)INIT, NULL, 0, 0);
 
     Message();
     return 0;
 }
+

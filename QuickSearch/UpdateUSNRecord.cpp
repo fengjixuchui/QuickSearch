@@ -11,7 +11,7 @@ UpdateUSNRecord::~UpdateUSNRecord()
 {
 }
 
-void UpdateUSNRecord::Update(std::unique_ptr<UsnRecordList>& pList)
+void UpdateUSNRecord::Update(UsnRecordList* pList)
 {
     for (auto it = pList->begin(); it != pList->end(); ++it)
     {

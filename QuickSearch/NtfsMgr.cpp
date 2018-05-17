@@ -2,7 +2,7 @@
 #include <WinBase.h>
 #include "ntfsUtils.h"
 #include "ScanNtfsOrDBThread.h"
-#include "IndexManager.h"
+
 #include "Volume.h"
 #include <Shlwapi.h>
 #include <ShlObj.h>
@@ -136,12 +136,12 @@ BOOL CNtfsMgr::ScanVolumeFileData()
         if (bValidDB == FALSE)
         {
             m_vecScanThread[i]->StartScan();
-            m_vecScanThread[i]->Wait();
+            //m_vecScanThread[i]->Wait();
         }
     }
 
     //并行扫描有DB的Ntfs数据。
-    for (DWORD i = 0; i < m_vecScanThread.size(); ++i)
+    /*for (DWORD i = 0; i < m_vecScanThread.size(); ++i)
     {
         DWORD dwVolIndex = m_vecScanThread[i]->GetVolIndex();
         BOOL bValidDB = g_ArrayVolumeInfo[dwVolIndex].IsValidDB();
@@ -150,18 +150,15 @@ BOOL CNtfsMgr::ScanVolumeFileData()
             m_vecScanThread[i]->StartScan();
             m_vecScanThread[i]->Wait();
         }
-    }
+    }*/
 
-    /*for (DWORD i = 0; i < m_vecScanThread.size(); ++i)
+    for (DWORD i = 0; i < m_vecScanThread.size(); ++i)
     {
         if (m_vecScanThread[i] != NULL)
         {
-            DWORD dwVolIndex = m_vecScanThread[i]->GetVolIndex();
-            BOOL bValidDB = g_ArrayVolumeInfo[dwVolIndex].IsValidDB();
-            if (bValidDB)
-                m_vecScanThread[i]->Wait();
+            m_vecScanThread[i]->Wait();
         }
-    }*/
+    }
 
     //释放线程
     for (DWORD i = 0; i<m_vecScanThread.size(); ++i)
@@ -240,10 +237,20 @@ DWORD CNtfsMgr::GetVolFileCnt(int nvolIndex)
     return g_pIndexManager->GetVolFileCnt(nvolIndex);
 }
 
+DWORD CNtfsMgr::GetAllFileCnt()
+{
+    DWORD dwFileCnt = 0;
+    for (auto& tmp : g_pIndexManager->m_VolFileIndex)
+    {
+        dwFileCnt += tmp.size();
+    }
+    return dwFileCnt;
+}
+
 BOOL CNtfsMgr::LoadDatabase(int volIndex)
 {
 
-    LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Loading Database...";
+    /*LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Loading Database...";
     DWORD dwStart = ::GetTickCount();
 
     std::wstring strDbFilePath;
@@ -251,6 +258,12 @@ BOOL CNtfsMgr::LoadDatabase(int volIndex)
     if (strDbFilePath.length() == 0) return FALSE;
 
     g_pIndexManager->Load(strDbFilePath, volIndex);
+    LoadFileNameDatabase(volIndex);
+    for (auto & tmp : g_pIndexManager->m_VolFileIndex[volIndex])
+    {
+        tmp.pFileName = g_pMemoryManager->m_fileNameMap[volIndex][tmp.FileReferenceNumber];
+    }*/
+    return TRUE;
 }
 
 BOOL CNtfsMgr::CreateDatabase(int volIndex)
@@ -302,14 +315,14 @@ BOOL CNtfsMgr::CreateDatabase(int volIndex)
             if (fileEntry.FileReferenceNumber != KEY_MASK &&
                 fileEntry.fileInfo.volIndex >= 2 &&
                 fileEntry.fileInfo.volIndex < 26 &&
-                fileEntry.fileInfo.FileNameLength > 0)
+                fileEntry.pFileName->FileNameLength > 0)
             {
                 g_pIndexManager->AddEntry(fileEntry, volIndex);
                 dwIndexTime += ::GetTickCount() - dwIndexBegin;
             }
             pRecord = (PUSN_RECORD)(((PBYTE)pRecord) + pRecord->RecordLength);
+            
         }
-
         med.StartFileReferenceNumber = *((USN*)&outBuffer);
         beginTime = ::GetTickCount();
     }
@@ -320,16 +333,8 @@ BOOL CNtfsMgr::CreateDatabase(int volIndex)
     return bRet;
 }
 
-BOOL CNtfsMgr::LoadIndexData(int volIndex)
+BOOL CNtfsMgr::LoadFileNameDatabase(int volIndex)
 {
-
-    return 0;
-}
-
-BOOL CNtfsMgr::LoadFileNameData(int volIndex)
-{
-    /*LOG(INFO)<<__FUNCTIONW__<<"vol:"<< volIndex + 'A'<<"Loading FileName Database...";
-
     DWORD dwStart = ::GetTickCount();
 
     std::wstring strDbFilePath;
@@ -339,13 +344,13 @@ BOOL CNtfsMgr::LoadFileNameData(int volIndex)
     HANDLE hfile = ::CreateFile(strDbFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (INVALID_HANDLE_VALUE == hfile)
     {
-        LOG(INFO)<<__FUNCTIONW__<<" can not open "<< strDbFilePath;
+        LOG(INFO)<<__FUNCTIONW__<<" can not open "<<strDbFilePath;
         return FALSE;
     }
     PBYTE pOutBuffer = (PBYTE)malloc(ALLOC_SIZE);
     if (pOutBuffer == NULL)
     {
-        LOG(INFO)<<__FUNCTIONW__<<"  Allocation when loadDatabase Error";
+        LOG(INFO) << __FUNCTIONW__ << " Allocation when loadDatabase Error";
         ::CloseHandle(hfile);
         return FALSE;
     }
@@ -353,7 +358,7 @@ BOOL CNtfsMgr::LoadFileNameData(int volIndex)
     DWORD cb;
     if (::ReadFile(hfile, pOutBuffer, DW_SEARCHDB_HEADER_LENGTH * sizeof(TCHAR), &cb, NULL) == FALSE)
     {
-        LOG(INFO)<<__FUNCTIONW__<<" Allocation when loadDatabase Error";
+        LOG(INFO) << __FUNCTIONW__ << " ReadFile  Error";
         ::CloseHandle(hfile);
         hfile = NULL;
         ::DeleteFile(strDbFilePath.c_str());
@@ -362,7 +367,7 @@ BOOL CNtfsMgr::LoadFileNameData(int volIndex)
     DWORD dwDbMemoryBlocknCount = 0;
     BOOL bRet = TRUE;
 
-    DWORD dwReadDBUseTime = 0, beginTime = 0, dwAddHashMapUseTime = 0, dwMemoryTime = 0, dwLoopCount = 0;
+    DWORD dwReadDBUseTime = 0, beginTime = 0,dwMemoryTime = 0, dwLoopCount = 0;
     while (::ReadFile(hfile, pOutBuffer, ALLOC_SIZE, &cb, NULL) && !IsQuit())
     {
         if (beginTime != 0)
@@ -376,7 +381,7 @@ BOOL CNtfsMgr::LoadFileNameData(int volIndex)
             break;
         }
         dwDbMemoryBlocknCount++;
-        DWORD* pHead = (DWORD*)(pOutBuffer + sizeof(int) + sizeof(int) + sizeof(void*));
+        PFileNameEntry pHead = (PFileNameEntry)(pOutBuffer + sizeof(int) + sizeof(int) + sizeof(void*));
         int *pfileRecordCount = (int*)pOutBuffer;
 
         DWORD addHashBegin = ::GetTickCount();
@@ -388,40 +393,96 @@ BOOL CNtfsMgr::LoadFileNameData(int volIndex)
             {
                 break;
             }
+            if (pHead->FRN == KEY_MASK) //无效数据就不需要重新入库了
+            {
+                pHead = (PFileNameEntry)((PBYTE)pHead + g_pMemoryManager->GetMinMBlockSize(\
+                    g_pMemoryManager->GetMinMBlockType(pHead->FileNameLength + FileNameEntryHeaderSize)));
+                continue;
+            }
 
             DWORD memoryBegin = ::GetTickCount();
-            DWORD dwFileNameLength = *pHead;
-            PCHAR pFileEntryTmp = (PCHAR)(pHead+sizeof(DWORD));
-            PCHAR pfile = g_pMemoryManager->GetNewFileRecord(dwFileNameLength, volIndex);
-            memcpy(pfile, pFileEntryTmp, dwFileNameLength);
+            PFileNameEntry pFileEntryTmp = (PFileNameEntry)pHead;
+            PFileNameEntry pNewFile = g_pMemoryManager->GetNewFileRecord(pFileEntryTmp->FileNameLength + FileNameEntryHeaderSize, volIndex);
+
             dwMemoryTime += ::GetTickCount() - memoryBegin;
-            if (dwFileNameLength>0)
+            if (pFileEntryTmp->FileNameLength > 0)
             {
-                AddInitEntry(pFileEntry, (int)pFileEntry->fileInfo.volIndex);
+                memcpy(pNewFile, pFileEntryTmp, pHead->FileNameLength + FileNameEntryHeaderSize);
+                g_pMemoryManager->m_fileNameMap[volIndex][pNewFile->FRN] = pNewFile;
             }
-            pHead = (PFileEntry)((PBYTE)pHead + g_pMemoryManager->GetMinMBlockSize(pHead->fileInfo.mBlockType));
+            pHead = (PFileNameEntry)((PBYTE)pHead + g_pMemoryManager->GetMinMBlockSize(\
+                g_pMemoryManager->GetMinMBlockType(pHead->FileNameLength + FileNameEntryHeaderSize)));
         }
         memset(pOutBuffer, 0, ALLOC_SIZE);
         beginTime = ::GetTickCount();
-
-        dwAddHashMapUseTime += beginTime - addHashBegin;
     }
     ::CloseHandle(hfile);
     free(pOutBuffer);
     pOutBuffer = NULL;
     DWORD endTime = ::GetTickCount() - dwStart;
 
-    LOG_INFO(GID_DESKTOP, _T("[%c:]%s UpdateDatabase Test DB vol:%d,Block[%d], time[%d],dwReadDBUseTime[%d],dwAddHashMapUseTime[%d],dwMemoryTime[%d]"), \
-        volIndex + 'A', __FUNCTIONW__, volIndex, dwDbMemoryBlocknCount, endTime, dwReadDBUseTime, dwAddHashMapUseTime, dwMemoryTime);
-    CSCoreIndexMgr::Instance()->PrintIndexHashMap();
-    return bRet;*/
+    return bRet;
+}
+
+BOOL CNtfsMgr::SaveFileNameDataBase(int volIndex)
+{
+    std::wstring tempPath;
+    GetVolumeDBStorePath(tempPath, TC_DB_FILE_NAME, volIndex,TRUE);
+    if (tempPath.size() == 0) return FALSE;
+    std::wstring dbPath = tempPath;
+    tempPath += L"_tmp";
+
+    TCHAR szHeaderBuffer[DW_SEARCHDB_HEADER_LENGTH] = { 0 };
+    BOOL bRet = SaveNtfsInfoDB(szHeaderBuffer, DW_SEARCHDB_HEADER_LENGTH, volIndex);
+    if (!bRet) return FALSE;
+
+    HANDLE hfile = NULL;
+    DWORD cb = 0;
+    hfile = ::CreateFile(tempPath.c_str(), GENERIC_WRITE, 0, NULL,
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (INVALID_HANDLE_VALUE == hfile)
+    {
+        LOG(INFO)<<__FUNCTIONW__<<" Create filename DB falid error:"<<GetLastError();
+        return FALSE;
+    }
+
+    if (!::WriteFile(hfile, (LPCVOID)szHeaderBuffer, DW_SEARCHDB_HEADER_LENGTH * sizeof(TCHAR), &cb, NULL))
+    {
+        DWORD dwError = ::GetLastError();
+        LOG(INFO)<<__FUNCTIONW__<<" Write version number to local error:"<<dwError;
+
+        ::CloseHandle(hfile);
+        FileHandler::DeleteFile(tempPath.c_str());
+        return FALSE;
+    }
+
+    MemoryBlock *pMemoryBlockHead = g_pMemoryManager->m_pMemoryBlockHead[volIndex];
+    while (pMemoryBlockHead != NULL)
+    {
+        unsigned int dwTemp = 0;
+        if (!::WriteFile(hfile, pMemoryBlockHead, ALLOC_SIZE, &cb, NULL))
+        {
+            LOG(INFO)<<__FUNCTIONW__<<" Write file to local error";
+            ::CloseHandle(hfile);
+            FileHandler::DeleteFile(tempPath.c_str());
+            return FALSE;
+        }
+        MemoryBlock *pTemp = pMemoryBlockHead;
+        pMemoryBlockHead = pMemoryBlockHead->m_pNext;
+    }
+    ::CloseHandle(hfile);
+
+
+    FileHandler::DeleteFile(dbPath.c_str());
+    _wrename(tempPath.c_str(), dbPath.c_str());
+    return TRUE;
     return 0;
 }
 
 BOOL CNtfsMgr::SaveDatabase()
 {
     DWORD dwStart = ::GetTickCount();
-    for (int i = 0; i < DIRVE_COUNT; ++i)
+    for (int i = 0; i < VOLUME_COUNT; ++i)
     {
         //if (g_hVolHandle[i] != NULL && m_pMemoryBlockHead[i] != NULL)
         if (g_ArrayVolumeInfo[i].m_hVolHandle != INVALID_HANDLE_VALUE)
@@ -430,10 +491,11 @@ BOOL CNtfsMgr::SaveDatabase()
             {
                 //WriteIndexDataToLocal(i);
                 //WriteFileNameData(i);
-                std::wstring strDbFilePath;
-                GetVolumeDBStorePath(strDbFilePath, TC_DB_FILE_NAME, i, FALSE);
-                if (strDbFilePath.length() == 0) return FALSE;
-                g_pIndexManager->Save(strDbFilePath,i);
+                //std::wstring strDbFilePath;
+                //GetVolumeDBStorePath(strDbFilePath, TC_DB_FILE_NAME, i, FALSE);
+                //if (strDbFilePath.length() == 0) return FALSE;
+                //g_pIndexManager->Save(strDbFilePath,i);
+                SaveFileNameDataBase(i);
                 LOG(INFO) << __FUNCTIONW__ << " Write DB vol:" <<(char)(i+'A') ;
             }
         }
@@ -443,10 +505,10 @@ BOOL CNtfsMgr::SaveDatabase()
     return TRUE;
 }
 
-BOOL CNtfsMgr::GetVolumeDBStorePath(std::wstring & strDbFilePath, const TCHAR * pFileName, int volIndex,BOOL bNtfsInfo)
+BOOL CNtfsMgr::GetVolumeDBStorePath(std::wstring & strDbFilePath, const TCHAR * pFileName, int volIndex,BOOL isFileNameData)
 {
     TCHAR szStorePath[MAX_PATH + 1] = { 0 };
-    CFileHandler::GetAppStorePath(szStorePath);
+    FileHandler::GetAppStorePath(szStorePath);
     ::PathAddBackslash(szStorePath);
 
     TCHAR szCurVolSerialNum[20] = { 0 };    //每个卷的SerialNum
@@ -460,9 +522,9 @@ BOOL CNtfsMgr::GetVolumeDBStorePath(std::wstring & strDbFilePath, const TCHAR * 
     strDbFilePath += pFileName;
     strDbFilePath += L"_";
     strDbFilePath += szCurVolSerialNum;
-    if (bNtfsInfo == TRUE)
+    if (isFileNameData == TRUE)
     {
-        strDbFilePath += L"_NtfsInfo";
+        strDbFilePath += L"_FileNameInfo";
     }
     return TRUE;
 }
@@ -542,23 +604,8 @@ BOOL CNtfsMgr::CheckValidVolumeDB(int volIndex, LONGLONG & llNextUsn)
     return FALSE;
 }
 
-void DeleteDBFile(std::wstring path)
-{
-    WIN32_FILE_ATTRIBUTE_DATA attrs = { 0 };
-    if (::GetFileAttributesEx(path.c_str(), ::GetFileExInfoStandard, &attrs))
-        ::DeleteFile(path.c_str());
-}
-
-BOOL CNtfsMgr::SaveNtfsInfoDB(DWORD dwBufSize, int volIndex)
-{
-    std::wstring tempPath;
-    GetVolumeDBStorePath(tempPath, TC_DB_FILE_NAME, volIndex, TRUE);
-    if (tempPath.size() == 0) return FALSE;
-    std::wstring dbPath = tempPath;
-    tempPath += L"_tmp";
-
-    TCHAR szHeaderBuffer[DW_SEARCHDB_HEADER_LENGTH] = { 0 };
-    
+BOOL CNtfsMgr::SaveNtfsInfoDB(TCHAR* szHeaderBuffer, DWORD dwBufSize, int volIndex)
+{ 
     if (szHeaderBuffer == NULL) return FALSE;
     if (volIndex < 0 || volIndex >= 26) return FALSE;
 
@@ -606,25 +653,5 @@ BOOL CNtfsMgr::SaveNtfsInfoDB(DWORD dwBufSize, int volIndex)
     LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " JournalID:" << \
         g_ArrayVolumeInfo[volIndex].m_dwlJournalID << \
         " NextUSN:" << g_ArrayVolumeInfo[volIndex].m_usnNextUSN;
-    
-    DeleteDBFile(tempPath);
-    HANDLE hfile = NULL;
-    DWORD cb = 0;
-    hfile = ::CreateFile(tempPath.c_str(), GENERIC_WRITE, 0, NULL,
-        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (INVALID_HANDLE_VALUE == hfile)
-    {
-        LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Create WinSearch db falid";
-        return FALSE;
-    }
-
-    if (!::WriteFile(hfile, (LPCVOID)szHeaderBuffer, DW_SEARCHDB_HEADER_LENGTH * sizeof(TCHAR), &cb, NULL))
-    {
-        DWORD dwError = ::GetLastError();
-        LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(volIndex + 'A') << " Write version number to local error:" << dwError;
-        ::CloseHandle(hfile);
-        DeleteDBFile(tempPath);
-        return FALSE;
-    }
     return TRUE;
 }

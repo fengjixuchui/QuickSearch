@@ -55,7 +55,7 @@ FileNameMemoryManager::FileNameMemoryManager()
     m_dwTotalMBolcksCount = 0;
     m_dwWasteMemoryCount = 0;
 
-    for (int volIndex = 0; volIndex < DIRVE_COUNT; volIndex++)
+    for (int volIndex = 0; volIndex < VOLUME_COUNT; volIndex++)
     {
         m_pMemoryBlockHead[volIndex] = NULL;
         m_pMemoryBlockNow[volIndex] = NULL;
@@ -67,18 +67,20 @@ FileNameMemoryManager::FileNameMemoryManager()
 FileNameMemoryManager::~FileNameMemoryManager()
 {
     //FreeAllFileMemory();
-    for (int volIndex = 0; volIndex < DIRVE_COUNT; volIndex++)
+    for (int volIndex = 0; volIndex < VOLUME_COUNT; volIndex++)
     {
         m_idleRecordMultimap[volIndex].clear();
     }
 }
 
-PCHAR FileNameMemoryManager::GetNewFileRecord(int FileNameLength, int volIndex)
+PFileNameEntry FileNameMemoryManager::GetNewFileRecord(int recordLength, int volIndex)
 {
-    _tagEnumMinMBlock MinMBlockType = (_tagEnumMinMBlock)GetMinMBlockType(FileNameLength);
-    PCHAR idleFileEntry = GetIdleFileRecord(MinMBlockType, volIndex);
+    memory_lock.Lock();
+    _tagEnumMinMBlock MinMBlockType = (_tagEnumMinMBlock)GetMinMBlockType(recordLength);
+    PFileNameEntry idleFileEntry = GetIdleFileRecord(MinMBlockType, volIndex);
     if (idleFileEntry)
     {
+        memory_lock.UnLock();
         return idleFileEntry;
     }
 
@@ -87,6 +89,7 @@ PCHAR FileNameMemoryManager::GetNewFileRecord(int FileNameLength, int volIndex)
         m_pMemoryBlockNow[volIndex] = NewMemoryBolck(volIndex);
         if (m_pMemoryBlockNow[volIndex] == NULL)
         {
+            memory_lock.UnLock();
             LOG(INFO) << __FUNCTIONW__ << " Allocation Error";
             return NULL;
         }
@@ -102,25 +105,29 @@ PCHAR FileNameMemoryManager::GetNewFileRecord(int FileNameLength, int volIndex)
         MemoryBlock *pMemoryBolck = NewMemoryBolck(volIndex);
         if (pMemoryBolck == NULL)
         {
+            memory_lock.UnLock();
             LOG(INFO) << __FUNCTIONW__ << " Allocation Error";
             return NULL;
         }
         m_pMemoryBlockNow[volIndex]->m_pNext = pMemoryBolck;
         m_pMemoryBlockNow[volIndex] = pMemoryBolck;
     }
-    //*(DWORD*)(m_pMemoryBlockNow[volIndex] + m_pMemoryBlockNow[volIndex]->m_used) = dwMBlockLength;
-    PCHAR pFileEntry = (PCHAR)m_pMemoryBlockNow[volIndex] + m_pMemoryBlockNow[volIndex]->m_used;
-    m_pMemoryBlockNow[volIndex]->m_used += (dwMBlockLength + sizeof(DWORD));
+
+    PFileNameEntry pFileEntry = (PFileNameEntry)((PCHAR)m_pMemoryBlockNow[volIndex] + m_pMemoryBlockNow[volIndex]->m_used);
+    m_pMemoryBlockNow[volIndex]->m_used += dwMBlockLength;
     m_pMemoryBlockNow[volIndex]->m_fileRecordCount += 1;
     m_dwFileRecordCount++;
+    memory_lock.UnLock();
+    *(((char*)pFileEntry) + recordLength) = 0;
+    *(((char*)pFileEntry) + recordLength-1)= 0;
     return pFileEntry;
 }
 
-void FileNameMemoryManager::FreeFileEntry(FileEntry & FileRecord, int volIndex)
+void FileNameMemoryManager::FreeFileEntry(PFileNameEntry pFileRecord, int volIndex)
 {
-    DWORD dwMBlockType = FileRecord.fileInfo.FileNameLength;
+    DWORD dwMBlockType = pFileRecord->FileNameLength+FileNameEntryHeaderSize;
     memory_lock.Lock();
-    m_idleRecordMultimap[volIndex].insert(std::make_pair(dwMBlockType, FileRecord.FileName));
+    m_idleRecordMultimap[volIndex].insert(std::make_pair(dwMBlockType, pFileRecord));
     memory_lock.UnLock();
     m_dwFreeidleCount++;
 
@@ -131,9 +138,9 @@ void FileNameMemoryManager::FreeFileEntry(FileEntry & FileRecord, int volIndex)
     }
 }
 
-PCHAR FileNameMemoryManager::GetIdleFileRecord(DWORD dwMinBlockType, int volIndex)
+PFileNameEntry FileNameMemoryManager::GetIdleFileRecord(DWORD dwMinBlockType, int volIndex)
 {
-    PCHAR idleFileEntry = NULL;
+    PFileNameEntry idleFileEntry = NULL;
     IdleRecordMultimap::iterator iter = m_idleRecordMultimap[volIndex].find(dwMinBlockType);
     if (iter != m_idleRecordMultimap[volIndex].end())
     {
@@ -182,6 +189,7 @@ DWORD FileNameMemoryManager::GetMinMBlockSize(DWORD dwMinMBlock)
 MemoryBlock* FileNameMemoryManager::NewMemoryBolck(int volIndex)
 {
     MemoryBlock *pMemoryBlock = (MemoryBlock *)calloc(1, ALLOC_SIZE);
+    memset(pMemoryBlock, 0, ALLOC_SIZE);
     if (pMemoryBlock != NULL)
     {
         pMemoryBlock->m_used = sizeof(MemoryBlock);
@@ -199,7 +207,7 @@ MemoryBlock* FileNameMemoryManager::NewMemoryBolck(int volIndex)
 DWORD FileNameMemoryManager::FreeAllFileMemory()
 {
     DWORD dwFreeBlockCnt = 0;
-    for (int i = 0; i < DIRVE_COUNT; ++i)
+    for (int i = 0; i < VOLUME_COUNT; ++i)
     {
         if (m_pMemoryBlockHead[i] != NULL)
         {

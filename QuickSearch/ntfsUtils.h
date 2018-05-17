@@ -11,5 +11,5 @@ namespace NtfsUtils
     BOOL QueryVolumeUsnJournal(HANDLE hVolume, DWORD dwVolIndex, PUSN_JOURNAL_DATA pUsnJournalData);
     DWORD QueryVolumeFileSys(char *pNameBuffer);
     BOOL USNRecord2FileEntry(PUSN_RECORD pRecord, int volIndex, FileEntry& fileEntry);
-    
+    BOOL GetFilePath(int nVol, PFileEntry pfileEntry, std::wstring& path);
 };

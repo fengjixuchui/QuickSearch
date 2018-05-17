@@ -34,4 +34,4 @@ public:
     BOOL IsHaveDB();
 };
 
-extern CVolume g_ArrayVolumeInfo[DIRVE_COUNT];
+extern CVolume g_ArrayVolumeInfo[VOLUME_COUNT];

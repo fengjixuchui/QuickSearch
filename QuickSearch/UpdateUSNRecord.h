@@ -7,7 +7,7 @@ public:
     ~UpdateUSNRecord();
 
 public:
-    void Update(std::unique_ptr<UsnRecordList>& pList);
+    void Update(UsnRecordList* pList);
 
 private:
     void CreateDiskEntry(int volIndex, FileEntry entry);

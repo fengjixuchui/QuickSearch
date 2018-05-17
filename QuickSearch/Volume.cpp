@@ -1,6 +1,6 @@
 #include "Volume.h"
 #include <WinBase.h>
-CVolume g_ArrayVolumeInfo[DIRVE_COUNT];
+CVolume g_ArrayVolumeInfo[VOLUME_COUNT];
 CVolume::CVolume()
 {
 	ResetData();
