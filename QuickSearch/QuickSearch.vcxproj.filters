@@ -90,6 +90,9 @@
     <ClInclude Include="mainWindow.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ShellContextMenu.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ntfsUtils.cpp">
@@ -146,6 +149,9 @@
     <ClCompile Include="ListviewMgr.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ShellContextMenu.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="QuickSearch.rc">
@@ -156,5 +162,10 @@
     <None Include="listview.bin">
       <Filter>资源文件</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="appicon.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

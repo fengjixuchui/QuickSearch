@@ -38,6 +38,14 @@ CNtfsMgr::~CNtfsMgr()
 
 void CNtfsMgr::UnInit()
 {
+    
+    for (DWORD i = 0; i < m_vecScanThread.size(); ++i)
+    {
+        if (m_vecScanThread[i] != NULL)
+            m_vecScanThread[i]->UnInit();
+        m_vecScanThread[i] = NULL;
+    }
+    DestroyInstance();
     //g_pMemoryManager->FreeAllFileMemory();
 
 }
@@ -165,6 +173,7 @@ BOOL CNtfsMgr::ScanVolumeFileData()
     {
         if (m_vecScanThread[i] != NULL)
             m_vecScanThread[i]->UnInit();
+        m_vecScanThread[i] = NULL;
     }
 
     DWORD scanTime = ::GetTickCount() - beginTime;
@@ -176,6 +185,7 @@ BOOL CNtfsMgr::ScanVolumeFileData()
     {
         LOG(INFO) << __FUNCTIONW__ << " vol:" << (char)(tmp + 'A') << " fileCnt:" << GetVolFileCnt(tmp);
     }
+    LOG(INFO) << __FUNCTIONW__ << " all file count:" << GetAllFileCnt();
     return TRUE;
 }
 

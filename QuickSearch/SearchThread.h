@@ -2,6 +2,7 @@
 #include "global.h"
 #include "Thread.h"
 #include <vector>
+#include <unordered_set>
 class CSearchThread : public CThread
 {
 
@@ -15,6 +16,7 @@ public:
 private:
     void ThreadFunc() override;
     void Search();
+    void Match(FileEntry fileEntry,std::wstring& wstrSearch);
 public:
     std::vector<FileEntry> m_vecResult;
 private:
@@ -22,5 +24,6 @@ private:
     SearchOpt m_SearchOpt;
     HANDLE m_hQuitEvent;
     HANDLE m_hPauseEvent;
+    std::unordered_set<wchar_t> regexCharSet;
 };
 

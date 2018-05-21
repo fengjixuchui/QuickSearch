@@ -1,6 +1,6 @@
 #pragma once
-#include <tchar.h>
 #include <windef.h>
+#include <tchar.h>
 #include <string>
 namespace FileHandler
 {

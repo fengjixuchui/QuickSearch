@@ -24,7 +24,8 @@ public:
     void    UnInit();
     void    Pause();
     void    Continue();
-    
+    static  CUsnMonitorThread* Instance();
+    static  void    DestroyInstance();
 private:
     HANDLE	        m_hQuitEvent;
     HANDLE	        m_hPauseEvent;
@@ -32,5 +33,6 @@ private:
     USN				m_nNextUsn;
     UsnRecordList	m_listUsnRecord;
     UpdateUSNRecord	m_UpdateUsnRecord;
+    static CUsnMonitorThread* usnMonitorThread;
 };
 

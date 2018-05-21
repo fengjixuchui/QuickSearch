@@ -1,6 +1,6 @@
 #pragma once
-#include "Thread.h"
 #include <windows.h>
+#include "Thread.h"
 class CNtfsMgr;
 class CScanNtfsOrDBThread : public CThread
 {

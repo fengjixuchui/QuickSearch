@@ -12,9 +12,11 @@ INITIALIZE_EASYLOGGINGPP
 #include "ListviewMgr.h"
 #include <WinUser.h>
 #include <tchar.h>
+#include "UsnMonitorThread.h"
+#include "ShellContextMenu.h"
 #pragma comment(lib,"comctl32.lib")
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' \
-version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 HINSTANCE g_hInstance = 0;
 
@@ -65,9 +67,14 @@ HIMAGELIST imglist1;
 HWND mainWindow;
 //note static text
 HWND staticText;
-
+//processbar
+HWND progressBar;
 CListviewMgr listViewMgr;
 
+BOOL bUseRegex = FALSE;
+//thread
+HANDLE InitThread;
+HANDLE SearchThread;
 
 HFONT hFont = CreateFont(
     -12/*高度*/, -6.5/*宽度*/, 0/*不用管*/, 0/*不用管*/, 400 /*一般这个值设为400*/,
@@ -78,6 +85,29 @@ HFONT hFont = CreateFont(
     FF_DONTCARE,  //不指定字体族*/
     L"微软雅黑"  //字体名
 );
+
+NOTIFYICONDATA nid;     //托盘属性  
+HMENU hMenu;            //托盘菜单  
+
+                        //实例化托盘  
+void InitTray(HINSTANCE hInstance, HWND hWnd)
+{
+    nid.cbSize = sizeof(NOTIFYICONDATA);
+    nid.hWnd = hWnd;
+    nid.uID = ID_TRAY;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_INFO;
+    nid.uCallbackMessage = WM_TRAY;
+    nid.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
+    lstrcpy(nid.szTip, L"QuickSearch");
+
+    hMenu = CreatePopupMenu();//生成托盘菜单  
+                              //为托盘菜单添加两个选项  
+    AppendMenu(hMenu, MF_STRING, ID_TRAY_SHOW, TEXT("提示"));
+    AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT, TEXT("退出"));
+
+    Shell_NotifyIcon(NIM_ADD, &nid);
+    
+}
 
 void UpdatePos(int width, int height)
 {
@@ -104,23 +134,41 @@ void WINAPI INIT()
     CNtfsMgr::Instance()->initVolumes();
     CNtfsMgr::Instance()->ScanVolumeFileData();
 
-    wchar_t strNote[30];
-    _stprintf_s(strNote, L"扫描结束，文件数量为 %d",CNtfsMgr::Instance()->GetAllFileCnt());
+    wchar_t strNote[255];
+    _stprintf_s(strNote, L"扫描结束，文件数量为: %d",CNtfsMgr::Instance()->GetAllFileCnt());
     SendMessage(staticText, WM_SETTEXT, 0, (LPARAM)strNote);
-    g_SearchMgr->Init();
-    listViewMgr.Init(listview);
-    SendMessage(mainWindow, MSG_FINISH_INIT, 0, 0);
+
+    g_SearchMgr->Init(mainWindow);
+    CUsnMonitorThread::Instance()->Init();
     bInitFinish = TRUE;
+    PostMessage(mainWindow, MSG_FINISH_INIT, 0, 0);
+
+    //while (TRUE)
+    //{
+    //    COLORREF color = RGB(1, 255, 1);
+    //    SendMessage(progressBar, PBM_SETBKCOLOR, 0, (LPARAM)color);
+    //    SendMessage(progressBar, PBM_DELTAPOS, //设置进度条的新位置为当前位置加上范围的1/20  
+    //        (WPARAM)(100/ 20), (LPARAM)0);
+    //    if (SendMessage(progressBar, PBM_GETPOS, (WPARAM)0, (LPARAM)0) //取得进度条当前位置  
+    //        >= 100)
+    //    {
+    //        SendMessage(progressBar, PBM_SETPOS, (WPARAM)0, (LPARAM)0); //将进度条复位  
+    //                                                                        //ExitThread(ip);  
+    //    }
+    //    Sleep(100);
+    //}
 }
 
-void WINAPI Search(SearchOpt opt)
+
+
+void SearchFinish()
 {
     ListView_DeleteAllItems(listview);
-    g_SearchMgr->Search(opt);
     listViewMgr.updateIcon();
     listViewMgr.UpdateValidResultCnt();
-    wchar_t strNote[30];
-    _stprintf_s(strNote, L"搜索结束,文件数量为 %d", listViewMgr.m_ResultCnt);
+    wchar_t strNote[255];
+    _stprintf_s(strNote, L"搜索结束，耗时: %dms，找到文件数量为: %d, 显示文件数量：%d", g_SearchMgr->dwSearchTime,\
+        g_SearchMgr->dwResultCnt, listViewMgr.m_ResultCnt);
     SendMessage(staticText, WM_SETTEXT, 0, (LPARAM)strNote);
     for (int i = 0; i < listViewMgr.m_ResultCnt; ++i)
     {
@@ -129,6 +177,10 @@ void WINAPI Search(SearchOpt opt)
         item1.iItem = i;//项目号  
         SendMessage(listview, LVM_INSERTITEM, 0, (LPARAM)&item1);
     }
+    //搜索完将focus返回到listview，否则右键菜单会有问题（暂未搞清楚）
+    SetFocus(listview);
+    //COLORREF RGB(0, 0, 255);
+    //ListView_SetBkColor(listview, RGB(0, 0, 255));
 }
 void FilterResult()
 {
@@ -212,5 +264,6 @@ void UpdateResultType(int nID)
     default:
         break;
     }
-    int a = 0;
+    FilterResult();
 }
+

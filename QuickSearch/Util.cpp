@@ -46,3 +46,14 @@ std::wstring GetInstallSize(DWORD dwInstallSize)
     }
     return std::wstring(str);
 }
+
+void StringFillString(std::wstring & source, std::wstring fillStr, std::wstring referenceStr)
+{
+    size_t nPos = 0;
+    while ((nPos = source.find(referenceStr, nPos)) != source.npos)
+    {
+        source.insert(nPos, fillStr);
+        nPos += (referenceStr.size() + fillStr.size());
+        source.insert(nPos, fillStr);
+    }
+}

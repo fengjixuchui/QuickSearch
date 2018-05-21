@@ -3,6 +3,7 @@
 #include "ntfsUtils.h"
 #define SCAN_USN_JARNAL_TIME 2000 // 2s
 
+CUsnMonitorThread* CUsnMonitorThread::usnMonitorThread = nullptr;
 CUsnMonitorThread::CUsnMonitorThread()
 {
 }
@@ -106,9 +107,13 @@ BOOL CUsnMonitorThread::UsnRecordChanged(PUSN_RECORD pRecord, UINT, int nVolInde
         m_nNextUsn = nNextUsn;
         m_listUsnRecord.push_back(record);
 
-        std::wstring strFileName;
-        strFileName.assign(pRecord->FileName, pRecord->FileNameLength / 2);
-        LOG(INFO) << __FUNCTIONW__ << " UsnMonitir Event:" << nEvent << " Volume:" << (char)(nVolIndex + 'A') << " Name:" << strFileName << \
+        int dwlength = WideCharToMultiByte(CP_UTF8, 0, pRecord->FileName, pRecord->FileNameLength+1, NULL, NULL, NULL, NULL);
+        char* str = (char*)malloc(dwlength);
+        WideCharToMultiByte(CP_UTF8, 0, pRecord->FileName, pRecord->FileNameLength + 1, str, dwlength, NULL, NULL);
+        std::string strText(str);
+        delete[] str;
+        //strFileName.assign(pRecord->FileName, pRecord->FileNameLength / 2);
+        LOG(INFO) << __FUNCTIONW__ << " UsnMonitir Event:" << nEvent << " Volume:" << (char)(nVolIndex + 'A') << " Name:" << strText << \
             " FRN:" << (pRecord->FileReferenceNumber & KEY_MASK) << " PFRN:" << pRecord->ParentFileReferenceNumber & KEY_MASK;
     }
 
@@ -117,13 +122,15 @@ BOOL CUsnMonitorThread::UsnRecordChanged(PUSN_RECORD pRecord, UINT, int nVolInde
 
 BOOL CUsnMonitorThread::Init()
 {
-    m_hQuitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    m_hQuitEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     m_hPauseEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+    StartThread();
     return TRUE;
 }
 
 void CUsnMonitorThread::UnInit()
 {
+    LOG(INFO) << __FUNCTIONW__;
     if (m_hQuitEvent)
     {
         ::SetEvent(m_hQuitEvent);
@@ -141,10 +148,13 @@ void CUsnMonitorThread::UnInit()
         ::CloseHandle(m_hPauseEvent);
         m_hPauseEvent = NULL;
     }
+    LOG(INFO) << __FUNCTIONW__;
+    DestroyInstance();
 }
 
 void CUsnMonitorThread::Pause()
 {
+    LOG(INFO) << __FUNCTIONW__;
     if (m_hPauseEvent)
     {
         ResetEvent(m_hPauseEvent);
@@ -153,29 +163,45 @@ void CUsnMonitorThread::Pause()
 
 void CUsnMonitorThread::Continue()
 {
+    LOG(INFO) << __FUNCTIONW__;
     if (m_hPauseEvent)
     {
         SetEvent(m_hPauseEvent);
     }
 }
 
+CUsnMonitorThread * CUsnMonitorThread::Instance()
+{
+    if (usnMonitorThread == nullptr)
+    {
+        usnMonitorThread = new CUsnMonitorThread();
+    }
+    return usnMonitorThread;
+}
+
+void CUsnMonitorThread::DestroyInstance()
+{
+    if (usnMonitorThread != nullptr)
+        delete usnMonitorThread;
+}
+
 void CUsnMonitorThread::ThreadFunc()
 {
+    LOG(INFO) << __FUNCTIONW__;
     do
     {
         DWORD beginTime = ::GetTickCount();
         for (int volIndex = 0; volIndex < VOLUME_COUNT; ++volIndex)
         {
             if (IsQuit()) return;
-            if (g_ArrayVolumeInfo[volIndex].m_hVolHandle != NULL)
+            if (g_ArrayVolumeInfo[volIndex].m_hVolHandle != INVALID_HANDLE_VALUE)
             {
                 MonitorDeviceIo(volIndex);
             }
         }
         DWORD endTime = ::GetTickCount() - beginTime;
-
+        LOG(INFO) << __FUNCTIONW__ << " time:" << endTime;
         MonitorPeriodFinished();
-
 
         if (WillPause())
         {
@@ -188,11 +214,12 @@ void CUsnMonitorThread::ThreadFunc()
 
 BOOL CUsnMonitorThread::MonitorDeviceIo(int volIndex)
 {
+    LOG(INFO) << __FUNCTIONW__;
     BYTE outBuffer[USN_PAGE_SIZE] = { 0 };
-    READ_USN_JOURNAL_DATA rujd;
+    READ_USN_JOURNAL_DATA_V0 rujd;
     PUSN_RECORD pRecord;
 
-    DWORD dwMonitorEvent = 0;
+    DWORD dwMonitorEvent = USN_REASON_CLOSE;
     BOOL bReturnOnlyOnClose = TRUE;
 
     rujd.StartUsn = m_arrayNextUsn[volIndex];
@@ -246,7 +273,7 @@ BOOL CUsnMonitorThread::MonitorDeviceIo(int volIndex)
         break;
 
     default:
-        LOG(INFO)<<__FUNCTIONW__<<" Unknown error when monitoring vol:"<<(char)( volIndex + 'A');
+        LOG(INFO)<<__FUNCTIONW__<<" Unknown error when monitoring vol:"<<(char)( volIndex + 'A')<<" error:"<<GetLastError();
         return FALSE;
         break;
     }
@@ -271,6 +298,7 @@ BOOL CUsnMonitorThread::WillPause()
 
 void CUsnMonitorThread::DoPause()
 {
+    LOG(INFO) << __FUNCTIONW__;
     HANDLE pHandle[] = { m_hPauseEvent , m_hQuitEvent };
     ::WaitForMultipleObjects(2, pHandle, FALSE, INFINITE);
 }

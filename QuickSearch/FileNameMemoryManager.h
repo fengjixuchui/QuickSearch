@@ -1,6 +1,6 @@
 #pragma once
-#include <map>
 #include <windows.h>
+#include <map>
 #include "global.h"
 #include <google/sparse_hash_map>
 typedef std::multimap<DWORD, PFileNameEntry> IdleRecordMultimap;
@@ -18,7 +18,7 @@ class FileNameMemoryManager
 public:
     FileNameMemoryManager();
     ~FileNameMemoryManager();
-    
+    void UnInit();
     PFileNameEntry GetNewFileRecord(int FileNameLength, int volIndex); // 获取有效的内存块插入位置
     void FreeFileEntry(PFileNameEntry FileRecord, int volIndex);
     DWORD FreeAllFileMemory();

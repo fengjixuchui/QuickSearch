@@ -1,7 +1,7 @@
 #include "SearchThread.h"
 #include "IndexManager.h"
 #include "ntfsUtils.h"
-
+#include "boost/regex.hpp"
 CSearchThread::CSearchThread()
 {
 
@@ -17,12 +17,25 @@ BOOL CSearchThread::Init(DWORD dwIndex)
     dwVolIndex = dwIndex;
     m_hQuitEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     m_hPauseEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    regexCharSet.insert('*');
+    regexCharSet.insert('^');
+    regexCharSet.insert('+');
+    regexCharSet.insert('?');
+    regexCharSet.insert('&');
+    regexCharSet.insert('*');
+    regexCharSet.insert('[');
+    regexCharSet.insert('{');
+    regexCharSet.insert('\\');
+    regexCharSet.insert('(');
+
     this->Start();
     return TRUE;
 }
 
 void CSearchThread::Uninit()
 {
+    this->Stop();
+    regexCharSet.clear();
     CloseHandle(m_hPauseEvent);
     CloseHandle(m_hQuitEvent);
     m_vecResult.clear();
@@ -55,7 +68,10 @@ void CSearchThread::ThreadFunc()
         }
         ::WaitForSingleObject(m_hPauseEvent, INFINITE);
         DWORD dwBegin = ::GetTickCount();
+
+        //search function
         Search();
+
         DWORD dwUseTime = ::GetTickCount() - dwBegin;
         LOG(INFO)<<__FUNCTIONW__<<" vol:"<<(char)(dwVolIndex + 'A')<<" dwUseTime:"<<dwUseTime<<" count:"<<m_vecResult.size();
         ::SetEvent(m_hQuitEvent);
@@ -72,48 +88,61 @@ void CSearchThread::Search()
     std::string strSearch(m_SearchOpt.name.c_str());
     int slength = strSearch.length() + 1;
     int len = MultiByteToWideChar(CP_UTF8, 0, strSearch.c_str(), slength, 0, 0);
-    std::wstring wstrSearch(len, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strSearch.c_str(), slength, (LPWSTR)wstrSearch.c_str(), len);
+
+    wchar_t* wchr = new wchar_t[len];
+    MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strSearch.c_str(), slength, (LPWSTR)wchr, len);
+    std::wstring wstrSearch(wchr);
+    std::wstring wstrSearchLowcase = strToLower(wstrSearch);
+    delete[] wchr;
+
     switch (m_SearchOpt.sortType)
     {
-    case Srot_By_Name:
+    case Sort_By_Name:
     {
         auto& index = g_pIndexManager->m_VolFileIndex[dwVolIndex].get<1>();
-        auto itr = index.begin();
-        for (;itr != index.end();++itr)
+        if (m_SearchOpt.bAscending == TRUE)
         {
-            std::string str(itr->pFileName->FileName);
-            slength = str.length() + 1;
-            len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), slength, 0, 0);
-            std::wstring wstrName(len, L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), slength, (LPWSTR)wstrName.c_str(), len);
-
-            if (SUBSTR(wstrName, wstrSearch))
+            auto itr = index.begin();
+            for (; itr != index.end(); ++itr)
             {
-                m_vecResult.push_back(*itr);
-                if (m_vecResult.size() >= RESULT_LIMIT)
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
                     break;
             }
         }
+        else
+        {
+            auto itr = index.rbegin();
+            for (; itr != index.rend(); ++itr)
+            {
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
+                    break;
+            }
+        }  
     }
         
         break;
     case Sort_By_FileSize:
     {
         auto& index = g_pIndexManager->m_VolFileIndex[dwVolIndex].get<2>();
-        auto itr = index.begin();
-        for (; itr != index.end(); ++itr)
+        if (m_SearchOpt.bAscending == TRUE)
         {
-            std::string str(itr->pFileName->FileName);
-            slength = str.length() + 1;
-            len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), slength, 0, 0);
-            std::wstring wstrName(len, L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), slength, (LPWSTR)wstrName.c_str(), len);
-
-            if (SUBSTR(wstrName, wstrSearch))
+            auto itr = index.begin();
+            for (; itr != index.end(); ++itr)
             {
-                m_vecResult.push_back(*itr);
-                if (m_vecResult.size() >= RESULT_LIMIT)
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
+                    break;
+            }
+        }
+        else
+        {
+            auto itr = index.rbegin();
+            for (; itr != index.rend(); ++itr)
+            {
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
                     break;
             }
         }
@@ -123,24 +152,27 @@ void CSearchThread::Search()
     case Sort_By_MfTime:
     {
         auto& index = g_pIndexManager->m_VolFileIndex[dwVolIndex].get<3>();
-        auto itr = index.begin();
-        for (; itr != index.end(); ++itr)
+        if (m_SearchOpt.bAscending == TRUE)
         {
-            std::string str(itr->pFileName->FileName);
-            slength = str.length() + 1;
-            len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), slength, 0, 0);
-            std::wstring wstrName(len, L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), slength, (LPWSTR)wstrName.c_str(), len);
-
-            if (SUBSTR(wstrName, wstrSearch))
+            auto itr = index.begin();
+            for (; itr != index.end(); ++itr)
             {
-                m_vecResult.push_back(*itr);
-                if (m_vecResult.size() >= RESULT_LIMIT)
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
+                    break;
+            }
+        }
+        else
+        {
+            auto itr = index.rbegin();
+            for (; itr != index.rend(); ++itr)
+            {
+                Match(*itr, wstrSearchLowcase);
+                if (m_vecResult.size() == RESULT_LIMIT)
                     break;
             }
         }
     }
-        
         break;
     default:
         break;
@@ -148,4 +180,32 @@ void CSearchThread::Search()
     
 
 
+}
+
+void CSearchThread::Match(FileEntry fileEntry,std::wstring& wstrSearch)
+{
+    std::string str(fileEntry.pFileName->FileName);
+    //int slength = str.length() + 1;
+    int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, 0, 0);
+    wchar_t* wchr = new wchar_t[len];
+    MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), -1, (LPWSTR)wchr, len);
+    std::wstring wstrName(wchr);
+    std::wstring wstrNameLowcase = strToLower(wstrName);
+    delete[] wchr;
+
+    if (m_SearchOpt.bUseRegex)
+    {        
+        boost::wregex reg(wstrSearch);
+        if (boost::regex_match(wstrNameLowcase, reg))
+        {
+            m_vecResult.push_back(fileEntry);
+        }
+    }
+    else
+    {
+        if (SUBSTR(wstrNameLowcase, wstrSearch))
+        {
+            m_vecResult.push_back(fileEntry);
+        }
+    }
 }

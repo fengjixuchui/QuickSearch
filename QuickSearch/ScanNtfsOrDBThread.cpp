@@ -28,6 +28,7 @@ CScanNtfsOrDBThread::~CScanNtfsOrDBThread()
 
 void CScanNtfsOrDBThread::Init(DWORD dwIndex, CNtfsMgr * pNtfsMgr)
 {
+    LOG(INFO) << __FUNCTIONW__;
     m_dwVolumeIndex = dwIndex;
     m_pNtfsMgr = pNtfsMgr;
     this->Start();
@@ -36,6 +37,7 @@ void CScanNtfsOrDBThread::Init(DWORD dwIndex, CNtfsMgr * pNtfsMgr)
 void CScanNtfsOrDBThread::UnInit()
 {
     this->Stop();
+    LOG(INFO) << __FUNCTIONW__;
 }
 
 void CScanNtfsOrDBThread::ThreadFunc()

@@ -73,6 +73,12 @@ FileNameMemoryManager::~FileNameMemoryManager()
     }
 }
 
+void FileNameMemoryManager::UnInit()
+{
+    FreeAllFileMemory();
+    delete g_pMemoryManager;
+}
+
 PFileNameEntry FileNameMemoryManager::GetNewFileRecord(int recordLength, int volIndex)
 {
     memory_lock.Lock();

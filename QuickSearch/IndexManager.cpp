@@ -59,24 +59,26 @@ BOOL IndexManager::isFindEntry(KEY FRN, int nVolIndex)
 
 void IndexManager::Save(std::wstring& strDbFilePath, int nVolIndex)
 {
-    const FileEntry_Set& fs = m_VolFileIndex[nVolIndex];
+    /*const FileEntry_Set& fs = m_VolFileIndex[nVolIndex];
     std::ofstream ofs(strDbFilePath);
     boost::archive::text_oarchive oa(ofs);
-    oa << fs;
+    oa << fs;*/
 }
 
 void IndexManager::Load(std::wstring& strDbFilePath, int nVolIndex)
 {
-    FileEntry_Set& fs = m_VolFileIndex[nVolIndex];
+    /*FileEntry_Set& fs = m_VolFileIndex[nVolIndex];
     std::ifstream ifs(strDbFilePath);
     boost::archive::text_iarchive ia(ifs);
-    ia >> fs;
+    ia >> fs;*/
 }
 
 void IndexManager::UnInit()
 {
+    g_pMemoryManager->UnInit();
     for (int i = 0; i < VOLUME_COUNT; ++i)
     {
         m_VolFileIndex[i].clear();
     }
+    delete g_pIndexManager;
 }

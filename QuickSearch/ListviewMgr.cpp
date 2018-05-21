@@ -3,6 +3,8 @@
 #include <Strsafe.h>
 #include "FileHandler.h"
 #include "Util.h"
+#include "resource.h"
+#include "ShellContextMenu.h"
 CListviewMgr::CListviewMgr()
 {
 
@@ -13,19 +15,23 @@ CListviewMgr::~CListviewMgr()
 {
 }
 
-void CListviewMgr::Init(HWND hwnd)
+void CListviewMgr::Init(HWND hwnd,HWND mainWindow)
 {
     this->m_hListview = hwnd;
+    this->m_hMainWindow = mainWindow;
     m_iconList = ImageList_Create(20, 20, ILC_COLOR32, 1, 1);
     ListView_SetImageList(m_hListview, m_iconList, LVSIL_SMALL);
     m_ResultTypeMask = 0;
+    bSortAscending = FALSE;
+    nSortColumn = 3;
+    nRClickItem = 0;
 }
 
 void CListviewMgr::UnInit()
 {
     for (auto tmp:VeciconIndex)
     {
-        CloseHandle(tmp);
+        DestroyIcon(tmp);
     }
 }
 
@@ -36,11 +42,12 @@ void CListviewMgr::RetrieveItem(SearchResultItem& pENtry, int index)
     pENtry = g_SearchMgr->m_vecResult[nTrueIndex];
 }
 
-LRESULT CListviewMgr::OnNotify(HWND hwnd, NMHDR * pnmhdr)
+LRESULT CListviewMgr::OnNotify(HWND hwnd, WPARAM wParam, LPARAM lParam)
 {
     HRESULT hr;
     LRESULT lrt = FALSE;
-
+    
+    NMHDR* pnmhdr = reinterpret_cast<NMHDR*>(lParam);
     switch (pnmhdr->code)
     {
     case LVN_GETDISPINFO:
@@ -158,12 +165,63 @@ LRESULT CListviewMgr::OnNotify(HWND hwnd, NMHDR * pnmhdr)
 
         break;
     }
+    case NM_DBLCLK:
+    {
+        NMITEMACTIVATE* plvdi = (LPNMITEMACTIVATE)pnmhdr;
+        int index = 0;
+        index = plvdi->iItem;
+        if (plvdi->iSubItem == 0)
+        {
 
+            int nTrueIndex = m_vecValidIndex[index];
+            std::wstring path = g_SearchMgr->m_vecResult[nTrueIndex].path;
+            //ShellExecute(NULL, L"properties", (LPWSTR)path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+
+            SHELLEXECUTEINFO   sei;
+            sei.hwnd = m_hMainWindow;
+            sei.lpVerb = TEXT("open");
+            sei.lpFile = (LPWSTR)path.c_str();
+            sei.lpDirectory = NULL;
+            sei.lpParameters = NULL;
+            sei.nShow = SW_SHOWNORMAL;
+            sei.fMask = SEE_MASK_INVOKEIDLIST;
+            sei.lpIDList = NULL;
+            sei.cbSize = sizeof(SHELLEXECUTEINFO);
+            ShellExecuteEx(&sei);
+        }
+    }
+    break;
+    case NM_RCLICK:
+    {
+        NMITEMACTIVATE* plvdi = (LPNMITEMACTIVATE)pnmhdr;
+        //NMHDR* pnmhdr = reinterpret_cast<NMHDR*>(lParam);
+        //pnmhdr->code = NM_SETFOCUS;
+        //SendMessage(m_hMainWindow, WM_NOTIFY, 0, LPARAM(pnmhdr));
+        if (plvdi->iSubItem == 0)
+        {
+            int index = 0;
+            index = plvdi->iItem;
+            nRClickItem = m_vecValidIndex[index];
+            std::wstring path = g_SearchMgr->m_vecResult[nRClickItem].path;
+            POINT pt = { 0 };
+            GetCursorPos(&pt);
+            if (path.length() == 0)
+            {
+                return lrt;
+            }
+            CShellContextMenu scm;
+            scm.SetObjects(path);
+            DWORD idCommand = scm.ShowContextMenu(m_hMainWindow, pt);
+        }
+    }
+        break;
+    case LVN_COLUMNCLICK:
+    {
+        OnColumnClick((LPNMLISTVIEW)pnmhdr);
+    }
     default:
         break;
-
     }       // End Switch block.
-
     return(lrt);
 }
 
@@ -243,5 +301,66 @@ void CListviewMgr::UpdateValidResultCnt()
             }
         }
     }
+}
 
+void CListviewMgr::setListViewSortIcon()
+{
+    HWND headerWnd;
+    const int bufLen = 256;
+    wchar_t headerText[bufLen];
+    HD_ITEM item;
+    int numColumns, curCol;
+
+    headerWnd = ListView_GetHeader(m_hListview);
+    numColumns = Header_GetItemCount(headerWnd);
+
+    for (curCol = 0; curCol < numColumns; curCol++)
+    {
+        item.mask = HDI_FORMAT | HDI_TEXT;
+        item.pszText = headerText;
+        item.cchTextMax = bufLen - 1;
+        SendMessage(headerWnd, HDM_GETITEM, curCol, (LPARAM)&item);
+
+        if (curCol == nSortColumn)
+            switch (bSortAscending)
+            {
+            case TRUE:
+                item.fmt &= ~HDF_SORTDOWN;
+                item.fmt |= HDF_SORTUP;
+                break;
+            case FALSE:
+                item.fmt &= ~HDF_SORTUP;
+                item.fmt |= HDF_SORTDOWN;
+                break;
+            }
+        else
+        {
+            item.fmt &= ~HDF_SORTUP & ~HDF_SORTDOWN;
+        }
+        item.fmt |= HDF_STRING;
+        item.mask = HDI_FORMAT | HDI_TEXT;
+        SendMessage(headerWnd, HDM_SETITEM, curCol, (LPARAM)&item);
+    }
+}
+
+void CListviewMgr::OnColumnClick(LPNMLISTVIEW pLVInfo)
+{
+    m_ResultCnt = 0;
+    if (pLVInfo->iSubItem == 1)
+        return;
+    // get new sort parameters
+    if (pLVInfo->iSubItem == nSortColumn)
+    {
+        bSortAscending = !bSortAscending;
+    }
+    else
+    {
+        nSortColumn = pLVInfo->iSubItem;
+        bSortAscending = FALSE;
+    }
+
+    // sort list
+    //ListView_SortItems(pLVInfo->hdr.hwndFrom, myCompFunc, lParamSort);
+    setListViewSortIcon();
+    SendMessage(m_hMainWindow, MSG_SORT_CHANGE, nSortColumn, bSortAscending);
 }

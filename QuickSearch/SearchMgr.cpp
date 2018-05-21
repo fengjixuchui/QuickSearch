@@ -2,7 +2,8 @@
 #include "NtfsMgr.h"
 #include "ntfsUtils.h"
 #include "FileHandler.h"
-
+#include "resource.h"
+#include "UsnMonitorThread.h"
 const std::wstring docExtBuffer[] = {
     L".doc",L".txt",L".rtf",L".hlp",L".pdf",L".ppt",L".pptx",L".xls",L".xlsx",L".docx",L".vsd",L".vsdx",L".ai",L".accdb",
     L".odt",L".xmind",L".xmap",L".mmap",L".xml",L".html",L".potx",L".dotx",L".wps",L".dps",L".et",L".wpt",L".dot",L".mhtml",
@@ -53,7 +54,127 @@ CSearchMgr::~CSearchMgr()
 {
 }
 
-void CSearchMgr::Init()
+void CSearchMgr::Init(HWND mainwindow)
+{
+    m_mainWindow = mainwindow;
+    dwResultCnt = 0;
+    m_hPauseEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    this->Start();
+}
+
+void CSearchMgr::UnInit()
+{
+    LOG(INFO) << __FUNCTIONW__;
+    this->Stop();
+    for (auto& tmp : m_vecSearchThread)
+    {
+        tmp->Uninit();
+    }
+    m_vecResult.clear();
+    m_MapExtClassFilter.clear();
+    CloseHandle(m_hPauseEvent);
+    delete g_SearchMgr;
+}
+
+void CSearchMgr::Search(SearchOpt opt)
+{
+    CUsnMonitorThread::Instance()->Pause();
+    std::vector<SearchResultItem> nullVec;
+    m_vecResult.swap(nullVec);
+    m_vecResult.reserve(100);
+    searchOpt = opt;
+    
+    ::SetEvent(m_hPauseEvent);
+}
+
+int CSearchMgr::GetResultCnt(int dwIndex)
+{
+
+    return 0;
+}
+
+void CSearchMgr::ReSortResult()
+{
+    dwResultCnt = 0;
+    std::vector<FileEntry> vecFileEntry;
+    vecFileEntry.reserve(100);
+    for (int index=0; index < CNtfsMgr::Instance()->m_vecValidVolumes.size();++index)
+    {
+        std::vector<FileEntry>& vecTmp = m_vecSearchThread[index]->m_vecResult;
+        vecFileEntry.insert(vecFileEntry.end(), vecTmp.begin(), vecTmp.end());
+        std::vector<FileEntry> nullVec;
+        vecTmp.swap(nullVec);
+    }
+    dwResultCnt = vecFileEntry.size();
+    switch (searchOpt.sortType)
+    {
+    case Sort_By_Name:
+        std::sort(vecFileEntry.begin(), vecFileEntry.end());
+        break;
+    case Sort_By_MfTime:
+        std::sort(vecFileEntry.begin(), vecFileEntry.end(), compFileTime);
+        break;
+    case Sort_By_FileSize:
+        std::sort(vecFileEntry.begin(), vecFileEntry.end(), compFileSize);
+        break;
+    default:
+        std::sort(vecFileEntry.begin(), vecFileEntry.end(), compFileTime);
+        break;
+    }
+    int index = 0;
+    for (int i = 0; i<vecFileEntry.size() && i < RESULT_LIMIT; ++i)
+    {
+        index = i;
+        if (searchOpt.bAscending)
+        {
+            index = vecFileEntry.size() - 1 - i;
+        }
+        std::wstring path;
+        NtfsUtils::GetFilePath(vecFileEntry[index].fileInfo.volIndex, &vecFileEntry[index], path);
+
+        std::string str(vecFileEntry[index].pFileName->FileName);
+        int slength = str.length() + 1;
+        int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), slength, 0, 0);
+        wchar_t* wchr = new wchar_t[len];
+        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), slength, (LPWSTR)wchr, len);
+        std::wstring wstrName(wchr);
+        short nFileType = 0;
+        if (vecFileEntry[index].fileInfo.dir == 1)
+        {
+            nFileType = TypeFolders;
+        }
+        else
+        {
+            nFileType = GetFileType(wstrName);
+        }
+        m_vecResult.push_back(SearchResultItem(wstrName,path, vecFileEntry[index].dwFileSize, vecFileEntry[index].dwMftTime, nFileType));
+    }
+}
+
+short CSearchMgr::GetFileType(std::wstring& filename)
+{
+    std::wstring strFileType;
+    FileHandler::SplitFileType(filename, strFileType);
+    if (strFileType.length() != 0)
+    {
+        if (m_MapExtClassFilter.find(strFileType) != m_MapExtClassFilter.end())
+        {
+            return m_MapExtClassFilter[strFileType];
+        }
+    }
+    return 0;
+}
+
+void CSearchMgr::InitClassFilter(const std::wstring * arrayPtr, int size, int filterType)
+{
+    for (int i = 0; i < size; i++)
+    {
+        m_MapExtClassFilter[arrayPtr[i]] = filterType;
+    }
+}
+
+
+void CSearchMgr::InitResource()
 {
     for (auto index : CNtfsMgr::Instance()->m_vecValidVolumes)
     {
@@ -79,108 +200,33 @@ void CSearchMgr::Init()
     InitClassFilter(zipExtBuffer, sum, (int)TypeCompressed);
 }
 
-void CSearchMgr::UnInit()
+void CSearchMgr::ThreadFunc()
 {
-    for (auto& tmp : m_vecSearchThread)
+    
+    InitResource();
+    while (this->IsExist())
     {
-        tmp->Uninit();
-    }
-    m_vecResult.clear();
-    m_MapExtClassFilter.clear();
-
-}
-
-void CSearchMgr::Search(SearchOpt opt)
-{
-    std::vector<SearchResultItem> nullVec;
-    m_vecResult.swap(nullVec);
-    m_vecResult.reserve(100);
-    searchOpt = opt;
-    for (auto tmp : m_vecSearchThread)
-    {
-        tmp->DoSearch(opt);
-    }
-    for (auto tmp : m_vecSearchThread)
-    {
-        tmp->Wait();
-    }
-    ReSortResult();
-}
-
-int CSearchMgr::GetResultCnt(int dwIndex)
-{
-
-    return 0;
-}
-
-void CSearchMgr::ReSortResult()
-{
-    std::vector<FileEntry> vecFileEntry;
-    vecFileEntry.reserve(100);
-    for (int index=0; index < CNtfsMgr::Instance()->m_vecValidVolumes.size();++index)
-    {
-        std::vector<FileEntry>& vecTmp = m_vecSearchThread[index]->m_vecResult;
-        vecFileEntry.insert(vecFileEntry.end(), vecTmp.begin(), vecTmp.end());
-        std::vector<FileEntry> nullVec;
-        vecTmp.swap(nullVec);
-    }
-    switch (searchOpt.sortType)
-    {
-    case Srot_By_Name:
-        std::sort(vecFileEntry.begin(), vecFileEntry.end());
-        break;
-    case Sort_By_MfTime:
-        std::sort(vecFileEntry.begin(), vecFileEntry.end(), compFileTime);
-        break;
-    case Sort_By_FileSize:
-        std::sort(vecFileEntry.begin(), vecFileEntry.end(), compFileSize);
-        break;
-    default:
-        std::sort(vecFileEntry.begin(), vecFileEntry.end());
-        break;
-    }
-    for (int i = 0; i<vecFileEntry.size() && i < RESULT_LIMIT; ++i)
-    {
-        std::wstring path;
-        NtfsUtils::GetFilePath(vecFileEntry[i].fileInfo.volIndex, &vecFileEntry[i], path);
-
-        std::string str(vecFileEntry[i].pFileName->FileName);
-        int slength = str.length() + 1;
-        int len = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), slength, 0, 0);
-        wchar_t* wchr = new wchar_t[len];
-        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)str.c_str(), slength, (LPWSTR)wchr, len);
-        std::wstring wstrName(wchr);
-        short nFileType = 0;
-        if (vecFileEntry[i].fileInfo.dir == 1)
+        if (!this->IsExist())
         {
-            nFileType = TypeFolders;
+            break;
         }
-        else
-        {
-            nFileType = GetFileType(wstrName);
-        }
-        m_vecResult.push_back(SearchResultItem(wstrName,path, vecFileEntry[i].dwFileSize, vecFileEntry[i].dwMftTime, nFileType));
-    }
-}
+        ::WaitForSingleObject(m_hPauseEvent, INFINITE);
 
-short CSearchMgr::GetFileType(std::wstring& filename)
-{
-    std::wstring strFileType;
-    FileHandler::SplitFileType(filename, strFileType);
-    if (strFileType.length() != 0)
-    {
-        if (m_MapExtClassFilter.find(strFileType) != m_MapExtClassFilter.end())
+        DWORD dwStart = ::GetTickCount();
+        for (auto tmp : m_vecSearchThread)
         {
-            return m_MapExtClassFilter[strFileType];
+            tmp->DoSearch(searchOpt);
         }
-    }
-    return 0;
-}
-
-void CSearchMgr::InitClassFilter(const std::wstring * arrayPtr, int size, int filterType)
-{
-    for (int i = 0; i < size; i++)
-    {
-        m_MapExtClassFilter[arrayPtr[i]] = filterType;
+        for (auto tmp : m_vecSearchThread)
+        {
+            tmp->Wait();
+        }
+        LOG(INFO) << __FUNCTIONW__ << " search time:" << ::GetTickCount() - dwStart;
+        DWORD dwSortTime = ::GetTickCount();
+        ReSortResult();
+        LOG(INFO) << __FUNCTIONW__ << " resort time:" << ::GetTickCount() - dwSortTime;
+        dwSearchTime = ::GetTickCount() - dwStart;
+        PostMessage(m_mainWindow, MSG_SEARCH_FINISH, 0, 0);
+        CUsnMonitorThread::Instance()->Continue();
     }
 }

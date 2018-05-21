@@ -114,30 +114,33 @@ typedef std::list<UsnUpdateRecord> UsnRecordList;
 
 enum SortType
 {
-    Srot_By_Name,
-    Sort_By_MfTime,
-    Sort_By_FileSize
+    Sort_By_Name = 0,
+    Sort_By_FileSize = 2,
+    Sort_By_MfTime = 3
 };
 struct SearchOpt
 {
     std::string name; //查询字符串
     SortType sortType;
     BOOL bAscending; //排序规则 升序 降序
+    BOOL bUseRegex;  //是否使用正则表达式
     SearchOpt()
     {
 
     }
-    SearchOpt(std::string name, SortType sortType, BOOL bAscending)
+    SearchOpt(std::string name, SortType sortType, BOOL bAscending, BOOL bUseRegex)
     {
         this->bAscending = bAscending;
         this->name = name;
         this->sortType = sortType;
+        this->bUseRegex = bUseRegex;
     }
     SearchOpt& operator = (const SearchOpt& opt)
     {
         this->bAscending = opt.bAscending;
         this->name = opt.name;
         this->sortType = opt.sortType;
+        this->bUseRegex = opt.bUseRegex;
         return *this;
     }
 };

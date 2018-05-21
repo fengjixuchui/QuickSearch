@@ -32,15 +32,14 @@ namespace NtfsUtils
         return count;
     }
 
-    LONGLONG  FileTimeToTime_t(FILETIME  ft)
+    DWORD  FileTimeToTime_t(FILETIME  ft)
     {
-        LONGLONG  ll;
-        ULARGE_INTEGER            ui;
-        ui.LowPart = ft.dwLowDateTime;
-        ui.HighPart = ft.dwHighDateTime;
-        ll = (LONGLONG)ft.dwHighDateTime;
-        ll = ((LONGLONG)ll << 32) + ft.dwLowDateTime;
-        return ((LONGLONG)(ui.QuadPart - 116444736000000000) / 10000000);
+        ULARGE_INTEGER ull;
+        ull.LowPart = ft.dwLowDateTime;
+        ull.HighPart = ft.dwHighDateTime;
+
+        DWORD dwTime= ull.QuadPart / 10000000ULL - 11644473600ULL;
+        return dwTime;
     }
 
     BOOL CreateUsnJournal(HANDLE hVolume, DWORDLONG MaximumSize, DWORDLONG AllocationDelta)
@@ -416,15 +415,15 @@ namespace NtfsUtils
                     {
                         strFileName.assign(fileEntry.pFileName->FileName, fileEntry.pFileName->FileNameLength);
 
-                        int slength = (int)strFileName.length() + 1;
-                        int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                        int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), -1, 0, 0);
                         wchar_t* wcharArr = new wchar_t[wstrLen];
                         memset(wcharArr, 0, wstrLen);
                         MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(),\
-                            strFileName.length(), (LPWSTR)wcharArr, wstrLen);
-                        std::wstring strName(wcharArr);
+                            -1, (LPWSTR)wcharArr, wstrLen);
+                        std::wstring wstrName;
+                        wstrName.assign(wcharArr,wstrLen);
                         delete[] wcharArr;
-                        strFilePath.insert(0, strName);
+                        strFilePath.insert(0, wstrName);
                         strFilePath.insert(0, _T("\\"));
                         bAttachFileName = FALSE;
                     }
@@ -444,12 +443,11 @@ namespace NtfsUtils
                 if (bAttachFileName)
                 {
                     strFileName.assign(fileEntry.pFileName->FileName, fileEntry.pFileName->FileNameLength);
-                    int slength = (int)strFileName.length() + 1;
-                    int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                    int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), -1, 0, 0);
                     wchar_t* wcharArr = new wchar_t[wstrLen];
                     memset(wcharArr, 0, wstrLen);
                     MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), \
-                        slength, (LPWSTR)wcharArr, wstrLen);
+                        -1, (LPWSTR)wcharArr, wstrLen);
                     std::wstring strName(wcharArr);
                     delete[] wcharArr;
                     strFilePath.insert(0, strName);
@@ -457,12 +455,12 @@ namespace NtfsUtils
                     bAttachFileName = FALSE;
                 }
                 strFileName.assign(parentEntry.pFileName->FileName, parentEntry.pFileName->FileNameLength);
-                int slength = (int)strFileName.length() + 1;
-                int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), slength, 0, 0);
+                //int slength = (int)strFileName.length() + 1;
+                int wstrLen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), -1, 0, 0);
                 wchar_t* wcharArr = new wchar_t[wstrLen];
                 memset(wcharArr, 0, wstrLen);
                 MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)strFileName.c_str(), \
-                    slength, (LPWSTR)wcharArr, wstrLen);
+                    -1, (LPWSTR)wcharArr, wstrLen);
                 std::wstring strName(wcharArr);
                 delete[] wcharArr;
 

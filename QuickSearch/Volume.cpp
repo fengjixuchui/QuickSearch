@@ -13,7 +13,7 @@ CVolume::~CVolume()
 
 void CVolume::ResetData()
 {
-	m_hVolHandle = nullptr;
+	m_hVolHandle = INVALID_HANDLE_VALUE;
 	m_dwFileRecordSize = 0;
 	m_usnNextUSN = 0;
 	m_usnFirstUSN = 0;
