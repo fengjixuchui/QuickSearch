@@ -6,12 +6,13 @@
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
-//#include <boost/archive/text_oarchive.hpp>
-//#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include <fstream>
 
 using boost::multi_index_container;
 using namespace boost::multi_index;
+
 typedef multi_index_container<
     FileEntry,
     indexed_by<
@@ -24,6 +25,7 @@ typedef multi_index_container<
     ordered_non_unique<
     BOOST_MULTI_INDEX_MEMBER(FileEntry, DWORD, dwMftTime)> >
     > FileEntry_Set;
+
 typedef FileEntry_Set::nth_index<0>::type FileEntry_By_FRN;
 typedef FileEntry_Set::nth_index<1>::type FileEntry_By_Name;
 typedef FileEntry_Set::nth_index<2>::type FileEntry_By_FileSize;

@@ -3,7 +3,6 @@
 #include "global.h"
 class CVolume
 {
-
 public:
 	HANDLE		m_hVolHandle;           // 卷的句柄
 	DWORD		m_dwFileRecordSize;     // 文件块记录地址的大小

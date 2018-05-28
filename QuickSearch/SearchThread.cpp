@@ -17,16 +17,6 @@ BOOL CSearchThread::Init(DWORD dwIndex)
     dwVolIndex = dwIndex;
     m_hQuitEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     m_hPauseEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-    regexCharSet.insert('*');
-    regexCharSet.insert('^');
-    regexCharSet.insert('+');
-    regexCharSet.insert('?');
-    regexCharSet.insert('&');
-    regexCharSet.insert('*');
-    regexCharSet.insert('[');
-    regexCharSet.insert('{');
-    regexCharSet.insert('\\');
-    regexCharSet.insert('(');
 
     this->Start();
     return TRUE;
@@ -35,7 +25,6 @@ BOOL CSearchThread::Init(DWORD dwIndex)
 void CSearchThread::Uninit()
 {
     this->Stop();
-    regexCharSet.clear();
     CloseHandle(m_hPauseEvent);
     CloseHandle(m_hQuitEvent);
     m_vecResult.clear();
@@ -94,7 +83,6 @@ void CSearchThread::Search()
     std::wstring wstrSearch(wchr);
     std::wstring wstrSearchLowcase = strToLower(wstrSearch);
     delete[] wchr;
-
     switch (m_SearchOpt.sortType)
     {
     case Sort_By_Name:
@@ -121,7 +109,6 @@ void CSearchThread::Search()
             }
         }  
     }
-        
         break;
     case Sort_By_FileSize:
     {
@@ -147,7 +134,6 @@ void CSearchThread::Search()
             }
         }
     }
-        
         break;
     case Sort_By_MfTime:
     {
@@ -177,9 +163,6 @@ void CSearchThread::Search()
     default:
         break;
     }
-    
-
-
 }
 
 void CSearchThread::Match(FileEntry fileEntry,std::wstring& wstrSearch)

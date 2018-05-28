@@ -202,7 +202,6 @@ void CSearchMgr::InitResource()
 
 void CSearchMgr::ThreadFunc()
 {
-    
     InitResource();
     while (this->IsExist())
     {
@@ -213,13 +212,13 @@ void CSearchMgr::ThreadFunc()
         ::WaitForSingleObject(m_hPauseEvent, INFINITE);
 
         DWORD dwStart = ::GetTickCount();
-        for (auto tmp : m_vecSearchThread)
+        for (auto thread : m_vecSearchThread)
         {
-            tmp->DoSearch(searchOpt);
+            thread->DoSearch(searchOpt);
         }
-        for (auto tmp : m_vecSearchThread)
+        for (auto thread : m_vecSearchThread)
         {
-            tmp->Wait();
+            thread->Wait();
         }
         LOG(INFO) << __FUNCTIONW__ << " search time:" << ::GetTickCount() - dwStart;
         DWORD dwSortTime = ::GetTickCount();

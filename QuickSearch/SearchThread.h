@@ -24,6 +24,5 @@ private:
     SearchOpt m_SearchOpt;
     HANDLE m_hQuitEvent;
     HANDLE m_hPauseEvent;
-    std::unordered_set<wchar_t> regexCharSet;
 };
 

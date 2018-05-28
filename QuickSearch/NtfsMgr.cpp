@@ -132,7 +132,6 @@ DWORD CNtfsMgr::initVolumes()
 BOOL CNtfsMgr::ScanVolumeFileData()
 {
     DWORD beginTime = ::GetTickCount();
-
     CreateScanThread();
     if (m_vecScanThread.size() <= 0) return FALSE;
 

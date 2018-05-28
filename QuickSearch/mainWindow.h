@@ -74,7 +74,7 @@ CListviewMgr listViewMgr;
 BOOL bUseRegex = FALSE;
 //thread
 HANDLE InitThread;
-HANDLE SearchThread;
+//HANDLE SearchThread;
 
 HFONT hFont = CreateFont(
     -12/*高度*/, -6.5/*宽度*/, 0/*不用管*/, 0/*不用管*/, 400 /*一般这个值设为400*/,
@@ -131,32 +131,20 @@ bool CALLBACK SetFont(HWND child, LPARAM font) {
 void WINAPI INIT()
 {
     SendMessage(staticText, WM_SETTEXT, 0, (LPARAM)L"扫描中...");
+    //初始化磁盘信息
     CNtfsMgr::Instance()->initVolumes();
+    //扫描磁盘并建立索引
     CNtfsMgr::Instance()->ScanVolumeFileData();
 
     wchar_t strNote[255];
     _stprintf_s(strNote, L"扫描结束，文件数量为: %d",CNtfsMgr::Instance()->GetAllFileCnt());
     SendMessage(staticText, WM_SETTEXT, 0, (LPARAM)strNote);
 
+    //搜索线程初始化
     g_SearchMgr->Init(mainWindow);
     CUsnMonitorThread::Instance()->Init();
     bInitFinish = TRUE;
     PostMessage(mainWindow, MSG_FINISH_INIT, 0, 0);
-
-    //while (TRUE)
-    //{
-    //    COLORREF color = RGB(1, 255, 1);
-    //    SendMessage(progressBar, PBM_SETBKCOLOR, 0, (LPARAM)color);
-    //    SendMessage(progressBar, PBM_DELTAPOS, //设置进度条的新位置为当前位置加上范围的1/20  
-    //        (WPARAM)(100/ 20), (LPARAM)0);
-    //    if (SendMessage(progressBar, PBM_GETPOS, (WPARAM)0, (LPARAM)0) //取得进度条当前位置  
-    //        >= 100)
-    //    {
-    //        SendMessage(progressBar, PBM_SETPOS, (WPARAM)0, (LPARAM)0); //将进度条复位  
-    //                                                                        //ExitThread(ip);  
-    //    }
-    //    Sleep(100);
-    //}
 }
 
 
@@ -165,7 +153,7 @@ void SearchFinish()
 {
     ListView_DeleteAllItems(listview);
     listViewMgr.updateIcon();
-    listViewMgr.UpdateValidResultCnt();
+    listViewMgr.UpdateValidResult();
     wchar_t strNote[255];
     _stprintf_s(strNote, L"搜索结束，耗时: %dms，找到文件数量为: %d, 显示文件数量：%d", g_SearchMgr->dwSearchTime,\
         g_SearchMgr->dwResultCnt, listViewMgr.m_ResultCnt);
@@ -177,15 +165,12 @@ void SearchFinish()
         item1.iItem = i;//项目号  
         SendMessage(listview, LVM_INSERTITEM, 0, (LPARAM)&item1);
     }
-    //搜索完将focus返回到listview，否则右键菜单会有问题（暂未搞清楚）
     SetFocus(listview);
-    //COLORREF RGB(0, 0, 255);
-    //ListView_SetBkColor(listview, RGB(0, 0, 255));
 }
 void FilterResult()
 {
     ListView_DeleteAllItems(listview);
-    listViewMgr.UpdateValidResultCnt();
+    listViewMgr.UpdateValidResult();
     wchar_t strNote[30];
     _stprintf_s(strNote, L"搜索结束,文件数量为 %d", listViewMgr.m_ResultCnt);
     SendMessage(staticText, WM_SETTEXT, 0, (LPARAM)strNote);
@@ -196,6 +181,7 @@ void FilterResult()
         item1.iItem = i;//项目号  
         SendMessage(listview, LVM_INSERTITEM, 0, (LPARAM)&item1);
     }
+    SetFocus(listview);
 }
 void UpdateResultType(int nID)
 {

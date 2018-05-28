@@ -130,7 +130,6 @@ BOOL CUsnMonitorThread::Init()
 
 void CUsnMonitorThread::UnInit()
 {
-    LOG(INFO) << __FUNCTIONW__;
     if (m_hQuitEvent)
     {
         ::SetEvent(m_hQuitEvent);
@@ -148,13 +147,17 @@ void CUsnMonitorThread::UnInit()
         ::CloseHandle(m_hPauseEvent);
         m_hPauseEvent = NULL;
     }
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     DestroyInstance();
 }
 
 void CUsnMonitorThread::Pause()
 {
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     if (m_hPauseEvent)
     {
         ResetEvent(m_hPauseEvent);
@@ -163,7 +166,9 @@ void CUsnMonitorThread::Pause()
 
 void CUsnMonitorThread::Continue()
 {
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     if (m_hPauseEvent)
     {
         SetEvent(m_hPauseEvent);
@@ -187,7 +192,9 @@ void CUsnMonitorThread::DestroyInstance()
 
 void CUsnMonitorThread::ThreadFunc()
 {
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     do
     {
         DWORD beginTime = ::GetTickCount();
@@ -202,10 +209,8 @@ void CUsnMonitorThread::ThreadFunc()
         DWORD endTime = ::GetTickCount() - beginTime;
         LOG(INFO) << __FUNCTIONW__ << " time:" << endTime;
         MonitorPeriodFinished();
-
         if (WillPause())
         {
-            //OnPause();
             DoPause();
         }
     } while (Wait());
@@ -214,7 +219,9 @@ void CUsnMonitorThread::ThreadFunc()
 
 BOOL CUsnMonitorThread::MonitorDeviceIo(int volIndex)
 {
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     BYTE outBuffer[USN_PAGE_SIZE] = { 0 };
     READ_USN_JOURNAL_DATA_V0 rujd;
     PUSN_RECORD pRecord;
@@ -298,7 +305,9 @@ BOOL CUsnMonitorThread::WillPause()
 
 void CUsnMonitorThread::DoPause()
 {
+#ifdef _DEBUG
     LOG(INFO) << __FUNCTIONW__;
+#endif
     HANDLE pHandle[] = { m_hPauseEvent , m_hQuitEvent };
     ::WaitForMultipleObjects(2, pHandle, FALSE, INFINITE);
 }

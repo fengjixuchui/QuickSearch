@@ -9,8 +9,6 @@ CListviewMgr::CListviewMgr()
 {
 
 }
-
-
 CListviewMgr::~CListviewMgr()
 {
 }
@@ -139,7 +137,6 @@ LRESULT CListviewMgr::OnNotify(HWND hwnd, WPARAM wParam, LPARAM lParam)
             }
 
         }
-
         lrt = FALSE;
         break;
     }
@@ -281,7 +278,7 @@ void CListviewMgr::updateIcon()
     ListView_SetImageList(m_hListview, m_iconList, LVSIL_SMALL);
 }
 
-void CListviewMgr::UpdateValidResultCnt()
+void CListviewMgr::UpdateValidResult()
 {
     m_vecValidIndex.clear();
     m_ResultCnt = 0;

@@ -326,10 +326,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     InitTray(hInstance, hWnd);
     listViewMgr.Init(listview, mainWindow);
     listViewMgr.setListViewSortIcon();
+
     InitThread = ::CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)INIT, NULL, 0, 0);
 
     //CloseHandle(InitThread);
     Message();
     return 0;
 }
-

@@ -17,7 +17,7 @@ public:
     void PrepCache(int iFrom, int iTo);
     HICON fileIcon(std::wstring extention);
     void updateIcon();
-    void UpdateValidResultCnt();
+    void UpdateValidResult();
     void setListViewSortIcon();
     void OnColumnClick(LPNMLISTVIEW pLVInfo);
 public:
